@@ -3,7 +3,6 @@ import datetime as dt
 import config
 import logging
 import numpy as np
-import twitter
 import slack
 
 from MyFillOrderBook import MyFillOrderBook
