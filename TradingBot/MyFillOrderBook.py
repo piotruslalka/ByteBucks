@@ -19,7 +19,6 @@ class MyFillOrderBook(AuthenticatedClient):
         
     def place_my_limit_order(self, side, price, size='0.01'):
         """ I place the limit order here """
-        logging.critical("OMG I CAN EDIT WHILE THE PROGRAM IS RUNNING@!")
         if(config.debug):
             return (True)
         
@@ -35,7 +34,6 @@ class MyFillOrderBook(AuthenticatedClient):
         
     def add_my_order(self, order):
         """ Add Order to book """
-        logging.critical("OMG I CAN EDIT WHILE THE PROGRAM IS RUNNING@!")
         logging.warning("Adding Order to book")
         logging.warning(order)
         if order['side'] == 'buy':
