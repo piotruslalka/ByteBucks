@@ -12,3 +12,5 @@ sandbox = {
     }
 
 my_user_id = "INSERT_MY_USER_ID_HERE"
+
+slack = {'webhook':'INSERT_WEBHOOK_HERE'}
