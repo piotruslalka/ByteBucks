@@ -1,4 +1,5 @@
 import logging
+import config
 
 from gdax.authenticated_client import AuthenticatedClient
 
@@ -19,6 +20,9 @@ class MyFillOrderBook(AuthenticatedClient):
     def place_my_limit_order(self, side, price, size='0.01'):
         """ I place the limit order here """
         logging.critical("OMG I CAN EDIT WHILE THE PROGRAM IS RUNNING@!")
+        if(config.debug):
+            return (True)
+        
         my_order = self.place_limit_order(product_id='BTC-USD', side=side, price=str(price), size=str(size), time_in_force='GTC', post_only=True)
         logging.info(my_order)
         
