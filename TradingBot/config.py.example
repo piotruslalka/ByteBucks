@@ -1,0 +1,14 @@
+# I store my API Keys here
+live = {
+    "key": "INSERT_MY_KEY_HERE",
+    "secret": "INSERT_MY_SECRET_HERE",
+    "passphrase": "INSERT_MY_PASSPHRASE_HERE",
+    }
+
+sandbox = {
+    "key": "INSERT_MY_KEY_HERE",
+    "secret": "INSERT_MY_SECRET_HERE",
+    "passphrase": "INSERT_MY_PASSPHRASE_HERE",
+    }
+
+my_user_id = "INSERT_MY_USER_ID_HERE"
