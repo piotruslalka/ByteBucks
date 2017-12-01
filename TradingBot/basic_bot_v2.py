@@ -25,7 +25,8 @@ ch.setLevel(logging.INFO)
 # Create formatter and add it to the handlers
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 ch.setFormatter(formatter)
-fh.setFormatter(formatter)
+formatter2 = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter2)
 
 # add the handlers to logger
 logger.addHandler(ch)
@@ -68,7 +69,10 @@ class MovingAverageCalculation(object):
                     logger.debug("Removing old data from MA.")
                             
                 return (smas[-1])
-            
+    
+    def get_std(self):
+        std = np.std(self.data)
+        return (std)
         
 class OrderBookConsole(OrderBook):
     ''' Logs real-time changes to the bid-ask spread to the console '''
@@ -88,9 +92,9 @@ class OrderBookConsole(OrderBook):
         self.message_count = 0
         self.sma = None
         self.valid_sma = False
-        self.buy_initial_offset = 25
+        self.buy_initial_offset = 50
         self.sell_initial_offset = 25
-        self.buy_additional_offset = 2
+        self.buy_additional_offset = 4
         self.sell_additional_offset = 2
         self.bid_theo = 0
         self.ask_theo = 0
@@ -143,21 +147,21 @@ class OrderBookConsole(OrderBook):
                 elif self.net_position > 0:
                     # We are long
                     if self.net_position > 2:
-                        self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * (self.net_position + 1 * self.net_position + 1))
+                        self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1)))
                         self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1) * 0.5) - (self.buy_additional_offset * ((self.net_position + 1 - 2) * (self.net_position + 1 - 2)))
                     
                     else:
-                        self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * (self.net_position + 1 * self.net_position + 1))
+                        self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1)))
                         self.ask_theo = self.sma
                     
                 else:
                     # We are short
                     if self.net_position < -2:
-                        self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * (self.net_position - 1 * self.net_position - 1))
+                        self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1)))
                         self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1) * 0.5) + (self.sell_additional_offset * ((self.net_position - 1 + 2) * (self.net_position - 1 + 2)))
                         
                     else:                
-                        self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * (self.net_position - 1 * self.net_position - 1))
+                        self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1)))
                         self.bid_theo = self.sma
                     
                 logger.debug('Net Position: {}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(self.net_position, self.bid_theo, self.ask_theo)) 
@@ -175,6 +179,8 @@ class OrderBookConsole(OrderBook):
                         if order_successful:
                             self.buy_levels += 1
                             logger.warning("Buy Levels: " + str(self.buy_levels))
+                            slack.send_message_to_slack("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
+                                     + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
 
                         else:
                             # Order did not go through... Try again.
@@ -190,6 +196,8 @@ class OrderBookConsole(OrderBook):
                         if order_successful:
                             self.buy_levels += 1
                             logger.warning("Buy Levels: " + str(self.buy_levels))
+                            slack.send_message_to_slack("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
+                                     + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
 
                         else:
                             # Order did not go through... Try again.
@@ -209,6 +217,8 @@ class OrderBookConsole(OrderBook):
                         if order_successful:
                             self.sell_levels += 1
                             logger.warning("Sell Levels: " + str(self.sell_levels))
+                            slack.send_message_to_slack("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
+                                          + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
                             
                         else:
                             # Order did not go through... Try again.
@@ -224,6 +234,8 @@ class OrderBookConsole(OrderBook):
                         if order_successful:
                             self.sell_levels += 1
                             logger.warning("Sell Levels: " + str(self.sell_levels))
+                            slack.send_message_to_slack("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
+                                          + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
                             
                         else:
                             # Order did not go through... Try again
@@ -261,9 +273,8 @@ class OrderBookConsole(OrderBook):
             if message['type'] == 'match':
                 self.auth_client.add_my_fill(message)
                 logger.warning("Got a trade. trade_id: " + str(message['trade_id']))
-                logger.warning("Sending Twitter Notification:")
+                logger.warning("Sending Slack Notification:")
                 logger.warning(message)
-                #my_notification = twitter.TwitterNotification(message = message)
                 slack.construct_message(message = message)
 
 
@@ -289,23 +300,39 @@ order_book.start()
 # Moving Average Initialization. Using 4 hour MA.
 my_MA = MovingAverageCalculation(window=25200)
 status_message_count = 0
-stale_message_count = 0
+stale_message_count = -1
 
 while order_book.message_count < 1000000000000:
     my_MA.count += 1
     sma = my_MA.add_value(order_book.trade_price)
     if sma != None:
         if my_MA.count > 30:
-            order_book.valid_sma = True
             order_book.sma = sma
-            logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(order_book.sma, order_book.bid_theo, order_book.ask_theo))
+            order_book.valid_sma = True
+            logger.info('SMA: {:.2f}\tStd: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(order_book.sma, my_MA.get_std(), order_book.bid_theo, order_book.ask_theo))
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
             logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(sma, order_book.bid_theo, order_book.ask_theo))
     time.sleep(1)
     
-    # Print Status Message
-    if (my_MA.count - status_message_count) > 60:
+    # Print Status Message:
+    if (my_MA.count - status_message_count) > 30:
+        if order_book.message_count==stale_message_count:
+            slack.send_message_to_slack("Connection has stopped. Restarting.")
+            buy_levels = order_book.buy_levels
+            sell_levels = order_book.sell_levels
+            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
+            order_book.buy_levels = buy_levels
+            order_book.sell_levels = sell_levels
+            order_book.net_position = buy_levels-sell_levels
+            order_book.auth = True
+            order_book.api_key = myKeys['key']
+            order_book.api_secret = myKeys['secret']
+            order_book.api_passphrase = myKeys['passphrase']
+            order_book.start()
+            status_message_count = my_MA.count
+            stale_message_count=-1
+        
         status_message_count = my_MA.count
         logger.warning("-----Printing Status Message: -----")
         logger.warning("Net Position: " + str(order_book.net_position))
