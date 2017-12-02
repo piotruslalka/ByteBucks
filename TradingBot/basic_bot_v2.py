@@ -1,5 +1,4 @@
 import time
-import datetime as dt
 import config
 import logging
 import numpy as np
@@ -8,6 +7,7 @@ import slack
 from MyFillOrderBook import MyFillOrderBook
 from gdax import OrderBook
 from decimal import Decimal
+from datetime import datetime
 
 # Logging Settings
 #logging.basicConfig(filename='example.log', level=logging.DEBUG)
@@ -92,11 +92,11 @@ class OrderBookConsole(OrderBook):
         self.message_count = 0
         self.sma = None
         self.valid_sma = False
-        self.order_size = 0.01
-        self.buy_initial_offset = 25
-        self.sell_initial_offset = 25
-        self.buy_additional_offset = 4
-        self.sell_additional_offset = 2
+        self.order_size = 0.02
+        self.buy_initial_offset = 10
+        self.sell_initial_offset = 10
+        self.buy_additional_offset = 1
+        self.sell_additional_offset = 1
         self.bid_theo = 0
         self.ask_theo = 0
         self.net_position = 0
@@ -176,12 +176,11 @@ class OrderBookConsole(OrderBook):
                         logger.info("Spread: " + str(self._spread))
                         clean_bid = '{:.2f}'.format(bid, 2)
                         logger.info("Order Price: " + clean_bid)
-                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.2f}'.format(self.order_size, 2))
+                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.3f}'.format(self.order_size))
                         if order_successful:
                             self.buy_levels += 1
                             logger.warning("Buy Levels: " + str(self.buy_levels))
-                            slack.send_message_to_slack("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
-                                     + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
+                            slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
                             self.pnl -= Decimal(bid)*Decimal(self.order_size)
 
                         else:
@@ -194,12 +193,11 @@ class OrderBookConsole(OrderBook):
                         #clean_bid = '{:.2f}'.format(bid + self.min_tick, 2)
                         clean_bid = '{:.2f}'.format(bid, 2)
                         logger.info("Order Price: " + clean_bid)
-                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.2f}'.format(self.order_size, 2))
+                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.3f}'.format(self.order_size))
                         if order_successful:
                             self.buy_levels += 1
                             logger.warning("Buy Levels: " + str(self.buy_levels))
-                            slack.send_message_to_slack("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
-                                     + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
+                            slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
                             self.pnl -= Decimal(bid)*Decimal(self.order_size)
 
                         else:
@@ -216,12 +214,11 @@ class OrderBookConsole(OrderBook):
                         logger.info("Spread: " + str(self._spread))
                         clean_ask = '{:.2f}'.format(ask, 2)
                         logger.info("Order Price: " + clean_ask)
-                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=clean_ask, size='{:.2f}'.format(self.order_size, 2))
+                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=clean_ask, size='{:.3f}'.format(self.order_size))
                         if order_successful:
                             self.sell_levels += 1
                             logger.warning("Sell Levels: " + str(self.sell_levels))
-                            slack.send_message_to_slack("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
-                                          + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                            slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
                             self.pnl += Decimal(ask)*Decimal(self.order_size)
                             
                         else:
@@ -234,12 +231,11 @@ class OrderBookConsole(OrderBook):
                         #clean_ask = '{:.2f}'.format(ask - self.min_tick, 2)
                         clean_ask = '{:.2f}'.format(ask, 2)
                         logger.info("Order Price: " + clean_ask)
-                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=(clean_ask), size='{:.2f}'.format(self.order_size, 2))
+                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=(clean_ask), size='{:.3f}'.format(self.order_size))
                         if order_successful:
                             self.sell_levels += 1
                             logger.warning("Sell Levels: " + str(self.sell_levels))
-                            slack.send_message_to_slack("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
-                                          + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                            slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
                             self.pnl += Decimal(ask)*Decimal(self.order_size)
                             
                         else:
@@ -280,7 +276,9 @@ class OrderBookConsole(OrderBook):
                 logger.warning("Got a trade. trade_id: " + str(message['trade_id']))
                 logger.warning("Sending Slack Notification:")
                 logger.warning(message)
-                slack.construct_message(message = message)
+                slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), Decimal(message['size']), Decimal(message['price']), str(datetime.now())))
+                
+                
 
     def get_pnl(self):
         return self.pnl + self.net_position * Decimal(self.trade_price) * Decimal(self.order_size)

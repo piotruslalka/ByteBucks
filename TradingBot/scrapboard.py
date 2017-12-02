@@ -39,11 +39,28 @@
 # print(fail)
 #===============================================================================
 
+# import slack
+# 
+# message = {'side':'buy',
+#            'size':'0.05',
+#            'price':'32533',
+#            'product_id':'btc/usd'}
+# 
+# slack.construct_message(message = message)
+
+
 import slack
 
+from datetime import datetime
+from decimal import Decimal
+
 message = {'side':'buy',
-           'size':'0.05',
+           'size':'0.050000',
            'price':'32533',
            'product_id':'btc/usd'}
 
-slack.construct_message(message = message)
+currTime = str(datetime.now())
+
+slack.send_message_to_slack("Filled - {} {:.2f} @ {}\t{}".format(message['side'].title(), Decimal(message['size']), message['price'], currTime))
+                            
+                            #:.3f
