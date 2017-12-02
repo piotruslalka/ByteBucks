@@ -45,7 +45,7 @@ class MovingAverageCalculation(object):
     def add_value(self, trade_price):
         if trade_price == None:
             logger.info("We don't have a valid price yet.")
-            self.count = 0
+            #self.count = 0
             
         else:
             trade_price = float(trade_price)
@@ -92,7 +92,8 @@ class OrderBookConsole(OrderBook):
         self.message_count = 0
         self.sma = None
         self.valid_sma = False
-        self.buy_initial_offset = 50
+        self.order_size = 0.01
+        self.buy_initial_offset = 25
         self.sell_initial_offset = 25
         self.buy_additional_offset = 4
         self.sell_additional_offset = 2
@@ -101,11 +102,11 @@ class OrderBookConsole(OrderBook):
         self.net_position = 0
         self.buy_levels = 0
         self.sell_levels = 0
+        self.pnl = 0
         self.num_rejections = 0
         self.min_tick = round(Decimal(0.01), 2)
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'])
-        
 
     def on_message(self, message):
         super(OrderBookConsole, self).on_message(message)
@@ -175,12 +176,13 @@ class OrderBookConsole(OrderBook):
                         logger.info("Spread: " + str(self._spread))
                         clean_bid = '{:.2f}'.format(bid, 2)
                         logger.info("Order Price: " + clean_bid)
-                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid)
+                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.2f}'.format(self.order_size, 2))
                         if order_successful:
                             self.buy_levels += 1
                             logger.warning("Buy Levels: " + str(self.buy_levels))
                             slack.send_message_to_slack("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
                                      + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
+                            self.pnl -= Decimal(bid)*Decimal(self.order_size)
 
                         else:
                             # Order did not go through... Try again.
@@ -192,12 +194,13 @@ class OrderBookConsole(OrderBook):
                         #clean_bid = '{:.2f}'.format(bid + self.min_tick, 2)
                         clean_bid = '{:.2f}'.format(bid, 2)
                         logger.info("Order Price: " + clean_bid)
-                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid)
+                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.2f}'.format(self.order_size, 2))
                         if order_successful:
                             self.buy_levels += 1
                             logger.warning("Buy Levels: " + str(self.buy_levels))
                             slack.send_message_to_slack("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
                                      + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
+                            self.pnl -= Decimal(bid)*Decimal(self.order_size)
 
                         else:
                             # Order did not go through... Try again.
@@ -213,12 +216,13 @@ class OrderBookConsole(OrderBook):
                         logger.info("Spread: " + str(self._spread))
                         clean_ask = '{:.2f}'.format(ask, 2)
                         logger.info("Order Price: " + clean_ask)
-                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=clean_ask)
+                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=clean_ask, size='{:.2f}'.format(self.order_size, 2))
                         if order_successful:
                             self.sell_levels += 1
                             logger.warning("Sell Levels: " + str(self.sell_levels))
                             slack.send_message_to_slack("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
                                           + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                            self.pnl += Decimal(ask)*Decimal(self.order_size)
                             
                         else:
                             # Order did not go through... Try again.
@@ -230,12 +234,13 @@ class OrderBookConsole(OrderBook):
                         #clean_ask = '{:.2f}'.format(ask - self.min_tick, 2)
                         clean_ask = '{:.2f}'.format(ask, 2)
                         logger.info("Order Price: " + clean_ask)
-                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=(clean_ask))
+                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=(clean_ask), size='{:.2f}'.format(self.order_size, 2))
                         if order_successful:
                             self.sell_levels += 1
                             logger.warning("Sell Levels: " + str(self.sell_levels))
                             slack.send_message_to_slack("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
                                           + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                            self.pnl += Decimal(ask)*Decimal(self.order_size)
                             
                         else:
                             # Order did not go through... Try again
@@ -277,6 +282,8 @@ class OrderBookConsole(OrderBook):
                 logger.warning(message)
                 slack.construct_message(message = message)
 
+    def get_pnl(self):
+        return self.pnl + self.net_position * Decimal(self.trade_price) * Decimal(self.order_size)
 
 
     
@@ -301,30 +308,35 @@ order_book.start()
 my_MA = MovingAverageCalculation(window=25200)
 status_message_count = 0
 stale_message_count = -1
-
+loop_count = 0
+timer_count = 0
 while order_book.message_count < 1000000000000:
+    loop_count += 1
     my_MA.count += 1
     sma = my_MA.add_value(order_book.trade_price)
     if sma != None:
         if my_MA.count > 30:
             order_book.sma = sma
             order_book.valid_sma = True
-            logger.info('SMA: {:.2f}\tStd: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(order_book.sma, my_MA.get_std(), order_book.bid_theo, order_book.ask_theo))
+            logger.info('PnL: {:.2f}\tSMA: {:.2f}\tStd: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(order_book.get_pnl(), order_book.sma, my_MA.get_std(), order_book.bid_theo, order_book.ask_theo))
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
             logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(sma, order_book.bid_theo, order_book.ask_theo))
     time.sleep(1)
     
-    # Print Status Message:
-    if (my_MA.count - status_message_count) > 30:
+    if ((loop_count - timer_count)>15):
+        timer_count = loop_count
+        logger.warning("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
             slack.send_message_to_slack("Connection has stopped. Restarting.")
             buy_levels = order_book.buy_levels
             sell_levels = order_book.sell_levels
+            current_pnl = order_book.pnl
             order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
             order_book.buy_levels = buy_levels
             order_book.sell_levels = sell_levels
             order_book.net_position = buy_levels-sell_levels
+            order_book.pnl = current_pnl
             order_book.auth = True
             order_book.api_key = myKeys['key']
             order_book.api_secret = myKeys['secret']
@@ -332,25 +344,14 @@ while order_book.message_count < 1000000000000:
             order_book.start()
             status_message_count = my_MA.count
             stale_message_count=-1
-        
+        stale_message_count=order_book.message_count
+    
+    # Print Status Message:
+    if (my_MA.count - status_message_count) > 30:
         status_message_count = my_MA.count
         logger.warning("-----Printing Status Message: -----")
         logger.warning("Net Position: " + str(order_book.net_position))
         logger.warning("Num Buy Levels: " + str(order_book.buy_levels))
         logger.warning("Num Sell Levels: " + str(order_book.sell_levels))
-
-        # See if we have stale data
-        if (order_book.message_count > 0):
-            if (stale_message_count == order_book.message_count):
-                # We have stale data
-                logger.critical("We have stale data. Quiting Program and sending a message")
-                #my_notification = twitter.TwitterNotification(stale=True)
-                slack.construct_message(stale=True)
-                quit()
-                
-            else:
-                logger.debug("Order Book Message Count: " + str(order_book.message_count))
-                logger.debug("Stale Message Count: " + str(stale_message_count))
-                stale_message_count = order_book.message_count
 
 order_book.close()
