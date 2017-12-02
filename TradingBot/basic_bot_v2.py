@@ -37,9 +37,11 @@ logger.addHandler(fh)
 class MovingAverageCalculation(object):
     """ A moving average class """
     
-    def __init__(self, window=10):
+    def __init__(self, window=10, std_window=300):
         self.data = []
+        self.std_data = []
         self.window = window
+        self.std_window = std_window
         self.count = 0
         
     def add_value(self, trade_price):
@@ -63,15 +65,18 @@ class MovingAverageCalculation(object):
                 weights = np.repeat(1.0, self.window)/self.window
                 smas = np.convolve(self.data, weights, 'valid')
     
-                #Remove old data
+                # Remove old data
                 if len(self.data) > self.window:
                     del self.data[0]
                     logger.debug("Removing old data from MA.")
                             
+                # Create subset of data to use for the STD
+                self.std_data = self.data[(len(self.data)-self.std_window):len(self.data)]
+                
                 return (smas[-1])
     
     def get_std(self):
-        std = np.std(self.data)
+        std = np.std(self.std_data)
         return (std)
         
 class OrderBookConsole(OrderBook):
@@ -92,11 +97,11 @@ class OrderBookConsole(OrderBook):
         self.message_count = 0
         self.sma = None
         self.valid_sma = False
-        self.order_size = 0.02
-        self.buy_initial_offset = 10
-        self.sell_initial_offset = 10
-        self.buy_additional_offset = 1
-        self.sell_additional_offset = 1
+        self.order_size = 0.011
+        self.buy_initial_offset = 100
+        self.sell_initial_offset = 100
+        self.buy_additional_offset = 10
+        self.sell_additional_offset = 10
         self.bid_theo = 0
         self.ask_theo = 0
         self.net_position = 0
@@ -303,7 +308,7 @@ order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
 # Moving Average Initialization. Using 4 hour MA.
-my_MA = MovingAverageCalculation(window=25200)
+my_MA = MovingAverageCalculation(window=25200, std_window=900)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
