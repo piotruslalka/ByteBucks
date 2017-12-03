@@ -3,6 +3,7 @@ import config
 import logging
 import numpy as np
 import slack
+from moving_average import MovingAverageCalculation
 
 from MyFillOrderBook import MyFillOrderBook
 from gdax import OrderBook
@@ -31,53 +32,6 @@ fh.setFormatter(formatter2)
 # add the handlers to logger
 logger.addHandler(ch)
 logger.addHandler(fh)
-
-
-
-class MovingAverageCalculation(object):
-    """ A moving average class """
-    
-    def __init__(self, window=10, std_window=300):
-        self.data = []
-        self.std_data = []
-        self.window = window
-        self.std_window = std_window
-        self.count = 0
-        
-    def add_value(self, trade_price):
-        if trade_price == None:
-            logger.info("We don't have a valid price yet.")
-            #self.count = 0
-            
-        else:
-            trade_price = float(trade_price)
-            if len(self.data) < self.window:
-                # Start up with window
-                while len(self.data) < self.window:
-                    self.data.append(trade_price)
-                
-                weights = np.repeat(1.0, self.window)/self.window
-                smas = np.convolve(self.data, weights, 'valid')
-                return (smas[-1])
-            
-            else:
-                self.data.append(trade_price)
-                weights = np.repeat(1.0, self.window)/self.window
-                smas = np.convolve(self.data, weights, 'valid')
-    
-                # Remove old data
-                if len(self.data) > self.window:
-                    del self.data[0]
-                    logger.debug("Removing old data from MA.")
-                            
-                # Create subset of data to use for the STD
-                self.std_data = self.data[(len(self.data)-self.std_window):len(self.data)]
-                
-                return (smas[-1])
-    
-    def get_std(self):
-        std = np.std(self.std_data)
-        return (std)
         
 class OrderBookConsole(OrderBook):
     ''' Logs real-time changes to the bid-ask spread to the console '''
@@ -97,11 +51,11 @@ class OrderBookConsole(OrderBook):
         self.message_count = 0
         self.sma = None
         self.valid_sma = False
-        self.order_size = 0.011
-        self.buy_initial_offset = 100
-        self.sell_initial_offset = 100
-        self.buy_additional_offset = 10
-        self.sell_additional_offset = 10
+        self.order_size = 0.02
+        self.buy_initial_offset = 25
+        self.sell_initial_offset = 25
+        self.buy_additional_offset = 2
+        self.sell_additional_offset = 2
         self.bid_theo = 0
         self.ask_theo = 0
         self.net_position = 0
@@ -308,7 +262,7 @@ order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
 # Moving Average Initialization. Using 4 hour MA.
-my_MA = MovingAverageCalculation(window=25200, std_window=900)
+my_MA = MovingAverageCalculation(window=25200, std_window=25200)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
@@ -321,7 +275,7 @@ while order_book.message_count < 1000000000000:
         if my_MA.count > 30:
             order_book.sma = sma
             order_book.valid_sma = True
-            logger.info('PnL: {:.2f}\tSMA: {:.2f}\tStd: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(order_book.get_pnl(), order_book.sma, my_MA.get_std(), order_book.bid_theo, order_book.ask_theo))
+            logger.info('PnL: {:.2f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\tStd: {:.2f}\t10_Std: {:.2f}\t5_wStd: {:.2f}\t10_wStd: {:.2f}\t15_wStd: {:.2f}'.format(order_book.get_pnl(), order_book.sma, order_book.bid_theo, order_book.ask_theo, my_MA.get_std(), my_MA.get_std(10*60), my_MA.get_weighted_std(5*60), my_MA.get_weighted_std(10*60), my_MA.get_weighted_std(15*60)))
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
             logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(sma, order_book.bid_theo, order_book.ask_theo))
@@ -345,7 +299,6 @@ while order_book.message_count < 1000000000000:
             order_book.api_secret = myKeys['secret']
             order_book.api_passphrase = myKeys['passphrase']
             order_book.start()
-            status_message_count = my_MA.count
             stale_message_count=-1
         stale_message_count=order_book.message_count
     
