@@ -14,4 +14,9 @@ sandbox = {
 my_user_id = "INSERT_MY_USER_ID_HERE"
 
 slack = "INSERT_WEBHOOK_HERE"
-debug = True
+debug = False
+
+# Personal Settings
+fill_notifications = True
+place_notifications = False
+connection_notifications = True
