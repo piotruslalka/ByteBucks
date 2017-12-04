@@ -33,7 +33,6 @@ fh.setFormatter(formatter2)
 logger.addHandler(ch)
 logger.addHandler(fh)
 
-debug = False
 
 class OrderBookConsole(OrderBook):
     ''' Logs real-time changes to the bid-ask spread to the console '''
@@ -129,7 +128,7 @@ class OrderBookConsole(OrderBook):
                         self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
                         self.bid_theo = self.sma
                     
-                if debug:
+                if config.debug:
                     logger.debug('Net Position: {}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(self.net_position, self.bid_theo, self.ask_theo)) 
                 
                 if ask < self.bid_theo:
