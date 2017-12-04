@@ -16,7 +16,7 @@ logger = logging.getLogger('simple_example')
 logger.setLevel(logging.DEBUG)
 
 # Create file handler which logs even debug messages
-fh = logging.FileHandler('fullLog.log')
+fh = logging.FileHandler("fullLog_" + time.strftime("%Y%m%d_%H%M%S") + ".log")
 fh.setLevel(logging.DEBUG)
 
 # Create console handler with a higher Log Level
@@ -32,7 +32,9 @@ fh.setFormatter(formatter2)
 # add the handlers to logger
 logger.addHandler(ch)
 logger.addHandler(fh)
-        
+
+debug = False
+
 class OrderBookConsole(OrderBook):
     ''' Logs real-time changes to the bid-ask spread to the console '''
 
@@ -51,8 +53,10 @@ class OrderBookConsole(OrderBook):
         self.message_count = 0
         self.sma = None
         self.valid_sma = False
+        self.short_std = 0
+        self.long_std = 0
         self.order_size = 0.02
-        self.buy_initial_offset = 25
+        self.buy_initial_offset = 50
         self.sell_initial_offset = 25
         self.buy_additional_offset = 2
         self.sell_additional_offset = 2
@@ -98,33 +102,35 @@ class OrderBookConsole(OrderBook):
             if self.valid_sma:
                 # Update Theos
                 self.net_position = self.buy_levels - self.sell_levels
-    
+                std_offset = max(self.short_std, self.long_std)
+                
                 if self.net_position == 0:
                     # We are flat
-                    self.bid_theo = self.sma - self.buy_initial_offset
-                    self.ask_theo = self.sma + self.sell_initial_offset
+                    self.bid_theo = self.sma - self.buy_initial_offset - std_offset
+                    self.ask_theo = self.sma + self.sell_initial_offset + std_offset
                     
                 elif self.net_position > 0:
                     # We are long
                     if self.net_position > 2:
-                        self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1)))
+                        self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
                         self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1) * 0.5) - (self.buy_additional_offset * ((self.net_position + 1 - 2) * (self.net_position + 1 - 2)))
                     
                     else:
-                        self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1)))
+                        self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
                         self.ask_theo = self.sma
                     
                 else:
                     # We are short
                     if self.net_position < -2:
-                        self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1)))
+                        self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
                         self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1) * 0.5) + (self.sell_additional_offset * ((self.net_position - 1 + 2) * (self.net_position - 1 + 2)))
                         
                     else:                
-                        self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1)))
+                        self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
                         self.bid_theo = self.sma
                     
-                logger.debug('Net Position: {}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(self.net_position, self.bid_theo, self.ask_theo)) 
+                if debug:
+                    logger.debug('Net Position: {}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(self.net_position, self.bid_theo, self.ask_theo)) 
                 
                 if ask < self.bid_theo:
                     # We want to place a Buy Order
@@ -275,7 +281,9 @@ while order_book.message_count < 1000000000000:
         if my_MA.count > 30:
             order_book.sma = sma
             order_book.valid_sma = True
-            logger.info('PnL: {:.2f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\tStd: {:.2f}\t10_Std: {:.2f}\t5_wStd: {:.2f}\t10_wStd: {:.2f}\t15_wStd: {:.2f}'.format(order_book.get_pnl(), order_book.sma, order_book.bid_theo, order_book.ask_theo, my_MA.get_std(), my_MA.get_std(10*60), my_MA.get_weighted_std(5*60), my_MA.get_weighted_std(10*60), my_MA.get_weighted_std(15*60)))
+            order_book.short_std = my_MA.get_weighted_std(5*60)
+            order_book.long_std = my_MA.get_weighted_std(30*60)
+            logger.info('Price: ' + order_book.trade_price + '\tPnL: {:.2f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\tStd: {:.2f}\t10_Std: {:.2f}\t5_wStd: {:.2f}\t10_wStd: {:.2f}\t30_wStd: {:.2f}'.format(order_book.get_pnl(), order_book.sma, order_book.bid_theo, order_book.ask_theo, my_MA.get_std(), my_MA.get_std(10*60), order_book.short_std, my_MA.get_weighted_std(10*60), order_book.long_std))
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
             logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(sma, order_book.bid_theo, order_book.ask_theo))
