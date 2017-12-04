@@ -16,7 +16,7 @@ logger = logging.getLogger('simple_example')
 logger.setLevel(logging.DEBUG)
 
 # Create file handler which logs even debug messages
-fh = logging.FileHandler("fullLog_" + time.strftime("%Y%m%d_%H%M%S") + ".log")
+fh = logging.FileHandler('fullLog.log')
 fh.setLevel(logging.DEBUG)
 
 # Create console handler with a higher Log Level
@@ -32,9 +32,7 @@ fh.setFormatter(formatter2)
 # add the handlers to logger
 logger.addHandler(ch)
 logger.addHandler(fh)
-
-debug = False
-
+        
 class OrderBookConsole(OrderBook):
     ''' Logs real-time changes to the bid-ask spread to the console '''
 
@@ -53,13 +51,11 @@ class OrderBookConsole(OrderBook):
         self.message_count = 0
         self.sma = None
         self.valid_sma = False
-        self.short_std = 0
-        self.long_std = 0
         self.order_size = 0.01
-        self.buy_initial_offset = 25
-        self.sell_initial_offset = 25
-        self.buy_additional_offset = 2
-        self.sell_additional_offset = 2
+        self.buy_initial_offset = 5
+        self.sell_initial_offset = 5
+        self.buy_additional_offset = 1
+        self.sell_additional_offset = 4
         self.bid_theo = 0
         self.ask_theo = 0
         self.net_position = 0
@@ -102,35 +98,33 @@ class OrderBookConsole(OrderBook):
             if self.valid_sma:
                 # Update Theos
                 self.net_position = self.buy_levels - self.sell_levels
-                std_offset = max(self.short_std, self.long_std)
-                
+    
                 if self.net_position == 0:
                     # We are flat
-                    self.bid_theo = self.sma - self.buy_initial_offset - std_offset
-                    self.ask_theo = self.sma + self.sell_initial_offset + std_offset
+                    self.bid_theo = self.sma - self.buy_initial_offset
+                    self.ask_theo = self.sma + self.sell_initial_offset
                     
                 elif self.net_position > 0:
                     # We are long
                     if self.net_position > 2:
-                        self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
-                        self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1) * 0.5) - (self.buy_additional_offset * ((self.net_position + 1 - 2) * (self.net_position + 1 - 2)))
+                        self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1)))
+                        self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1) * 0.75) - (self.buy_additional_offset * ((self.net_position + 1 - 2) * (self.net_position + 1 - 2)))
                     
                     else:
-                        self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
+                        self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1)))
                         self.ask_theo = self.sma
                     
                 else:
                     # We are short
                     if self.net_position < -2:
-                        self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
-                        self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1) * 0.5) + (self.sell_additional_offset * ((self.net_position - 1 + 2) * (self.net_position - 1 + 2)))
+                        self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1)))
+                        self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1) * 0.75) + (self.sell_additional_offset * ((self.net_position - 1 + 2) * (self.net_position - 1 + 2)))
                         
                     else:                
-                        self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
+                        self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1)))
                         self.bid_theo = self.sma
                     
-                if debug:
-                    logger.debug('Net Position: {}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(self.net_position, self.bid_theo, self.ask_theo)) 
+                logger.debug('Net Position: {}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(self.net_position, self.bid_theo, self.ask_theo)) 
                 
                 if ask < self.bid_theo:
                     # We want to place a Buy Order
@@ -145,9 +139,7 @@ class OrderBookConsole(OrderBook):
                         if order_successful:
                             self.buy_levels += 1
                             logger.warning("Buy Levels: " + str(self.buy_levels))
-                            if config.place_notifications:
-                                slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
-                            
+                            slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
                             self.pnl -= Decimal(bid)*Decimal(self.order_size)
 
                         else:
@@ -164,9 +156,7 @@ class OrderBookConsole(OrderBook):
                         if order_successful:
                             self.buy_levels += 1
                             logger.warning("Buy Levels: " + str(self.buy_levels))
-                            if config.place_notifications:
-                                slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
-                            
+                            slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
                             self.pnl -= Decimal(bid)*Decimal(self.order_size)
 
                         else:
@@ -187,9 +177,7 @@ class OrderBookConsole(OrderBook):
                         if order_successful:
                             self.sell_levels += 1
                             logger.warning("Sell Levels: " + str(self.sell_levels))
-                            if config.place_notifications:
-                                slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
-                            
+                            slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
                             self.pnl += Decimal(ask)*Decimal(self.order_size)
                             
                         else:
@@ -206,9 +194,7 @@ class OrderBookConsole(OrderBook):
                         if order_successful:
                             self.sell_levels += 1
                             logger.warning("Sell Levels: " + str(self.sell_levels))
-                            if config.place_notifications:
-                                slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
-                            
+                            slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
                             self.pnl += Decimal(ask)*Decimal(self.order_size)
                             
                         else:
@@ -249,8 +235,8 @@ class OrderBookConsole(OrderBook):
                 logger.warning("Got a trade. trade_id: " + str(message['trade_id']))
                 logger.warning("Sending Slack Notification:")
                 logger.warning(message)
-                if config.fill_notifications:
-                    slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), Decimal(message['size']), Decimal(message['price']), str(datetime.now())))
+                slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), Decimal(message['size']), Decimal(message['price']), str(datetime.now())))
+                
                 
 
     def get_pnl(self):
@@ -276,7 +262,7 @@ order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
 # Moving Average Initialization. Using 4 hour MA.
-my_MA = MovingAverageCalculation(window=25200, std_window=25200)
+my_MA = MovingAverageCalculation(window=900, std_window=900)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
@@ -289,23 +275,17 @@ while order_book.message_count < 1000000000000:
         if my_MA.count > 30:
             order_book.sma = sma
             order_book.valid_sma = True
-            order_book.short_std = my_MA.get_weighted_std(5*60)
-            order_book.long_std = my_MA.get_weighted_std(30*60)
-            logger.info('Price: ' + order_book.trade_price + '\tPnL: {:.2f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\tStd: {:.2f}\t10_Std: {:.2f}\t5_wStd: {:.2f}\t10_wStd: {:.2f}\t30_wStd: {:.2f}'.format(order_book.get_pnl(), order_book.sma, order_book.bid_theo, order_book.ask_theo, my_MA.get_std(), my_MA.get_std(10*60), order_book.short_std, my_MA.get_weighted_std(10*60), order_book.long_std))
-        
+            logger.info('PnL: {:.2f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\tStd: {:.2f}\t10_Std: {:.2f}\t5_wStd: {:.2f}\t10_wStd: {:.2f}\t15_wStd: {:.2f}'.format(order_book.get_pnl(), order_book.sma, order_book.bid_theo, order_book.ask_theo, my_MA.get_std(), my_MA.get_std(10*60), my_MA.get_weighted_std(5*60), my_MA.get_weighted_std(10*60), my_MA.get_weighted_std(15*60)))
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
             logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(sma, order_book.bid_theo, order_book.ask_theo))
-    
     time.sleep(1)
     
     if ((loop_count - timer_count)>15):
         timer_count = loop_count
         logger.warning("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
-            if config.connection_notifications:
-                slack.send_message_to_slack("Connection has stopped. Restarting.")
-            
+            slack.send_message_to_slack("Connection has stopped. Restarting.")
             buy_levels = order_book.buy_levels
             sell_levels = order_book.sell_levels
             current_pnl = order_book.pnl
