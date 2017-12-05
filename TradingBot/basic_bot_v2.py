@@ -28,7 +28,6 @@ formatter2 = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 fh.setFormatter(formatter2)
  
 # add the handlers to logging
-#logger.addHandler(ch)
 logger.addHandler(fh)
 
 
@@ -55,7 +54,6 @@ stale_message_count = -1
 loop_count = 0
 timer_count = 0
 while order_book.message_count < 1000000000000:
-    logger.info("Loop is beginning.")
     loop_count += 1
     my_MA.count += 1
     sma = my_MA.add_value(order_book.trade_price)

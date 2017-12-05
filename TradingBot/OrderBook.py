@@ -1,11 +1,11 @@
 import logging
+import config
 
 from MyFillOrderBook import MyFillOrderBook
 from gdax import OrderBook
 
 from decimal import Decimal
 from datetime import datetime
-
 
 logger = logging.getLogger('botLog')
 
@@ -17,7 +17,6 @@ class OrderBookConsole(OrderBook):
         super(OrderBookConsole, self).__init__(product_id=product_id)
 
         logger.info("Entered into the OrderBook Class!")
-
 
         # latest values of bid-ask spread
         self._bid = None
@@ -33,11 +32,11 @@ class OrderBookConsole(OrderBook):
         self.valid_sma = False
         self.short_std = 0
         self.long_std = 0
-        self.order_size = 0.011
-        self.buy_initial_offset = 100
-        self.sell_initial_offset = 100
-        self.buy_additional_offset = 2
-        self.sell_additional_offset = 2
+        self.order_size = config.order_size
+        self.buy_initial_offset = config.buy_initial_offset
+        self.sell_initial_offset = config.sell_initial_offset
+        self.buy_additional_offset = config.buy_additional_offset
+        self.sell_additional_offset = config.sell_additional_offset
         self.bid_theo = 0
         self.ask_theo = 0
         self.net_position = 0
@@ -49,6 +48,8 @@ class OrderBookConsole(OrderBook):
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'])
         
+        logger.info("Settings Used:")
+        logger.info("Order Size: {}\tBuy Initial Offset: {}\tSell Initial Offset: {}\tBuy Additional Offset: {}\tSell Additional Offset: {}".format(self.order_size, self.buy_initial_offset, self.sell_initial_offset, self.buy_additional_offset, self.sell_additional_offset))
 
     def on_message(self, message):
         super(OrderBookConsole, self).on_message(message)

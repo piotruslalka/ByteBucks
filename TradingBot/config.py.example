@@ -20,3 +20,10 @@ debug = False
 fill_notifications = True
 place_notifications = False
 connection_notifications = True
+
+# Trade Settings
+order_size = 0.03
+buy_initial_offset = 100
+sell_initial_offset = 100
+buy_additional_offset = 2
+sell_additional_offset = 2
