@@ -85,7 +85,7 @@ while order_book.message_count < 1000000000000:
             order_book.valid_sma = True
             order_book.short_std = my_MA.get_weighted_std(5*60) * 2 
             order_book.long_std = my_MA.get_weighted_std(30*60)
-            logger.info('Price: ' + order_book.trade_price + '\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}'.format(order_book.get_pnl(), order_book.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std))
+            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}'.format(Decimal(order_book.trade_price), order_book.get_pnl(), order_book.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std))
         
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
