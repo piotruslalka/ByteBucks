@@ -10,41 +10,35 @@ from decimal import Decimal
 from datetime import datetime
 
 # Logging Settings
+logger = logging.getLogger('botLog')
+logger.setLevel(logging.DEBUG)
 
-logging.basicConfig(filename='mynewlog.log', level=logging.DEBUG)
-logging.info('Start Logging')
-
-
-# #logging.basicConfig(filename='example.log', level=logging.DEBUG)
-# logging = logging.getlogging('simple_example')
-# logging.setLevel(logging.DEBUG)
-# 
-# # Create file handler which logs even debug messages
-# fh = logging.FileHandler("fullLog_" + time.strftime("%Y%m%d_%H%M%S") + ".log")
-# fh.setLevel(logging.DEBUG)
-# 
-# # Create console handler with a higher Log Level
-# ch = logging.StreamHandler()
-# ch.setLevel(logging.INFO)
-# 
-# # Create formatter and add it to the handlers
-# formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-# ch.setFormatter(formatter)
-# formatter2 = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-# fh.setFormatter(formatter2)
-# 
-# # add the handlers to logging
-# logging.addHandler(ch)
-# logging.addHandler(fh)
+# Create file handler which logs debug messages
+fh = logging.FileHandler("botLog_" + time.strftime("%Y%m%d_%H%M%S") + ".log")
+fh.setLevel(logging.DEBUG)
+ 
+# Create console handler with a higher Log Level
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ 
+# Create formatter and add it to the handlers
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+ch.setFormatter(formatter)
+formatter2 = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter2)
+ 
+# add the handlers to logging
+#logger.addHandler(ch)
+logger.addHandler(fh)
 
 
 # Log my Keys
 my_user_id = config.my_user_id
 myKeys = config.live
-logging.info("My keys are: ")
+logger.info("My keys are: ")
 for key, value in myKeys.items():
-    logging.info(key + ": " + value)
-logging.info("My user_id is: " + my_user_id)
+    logger.info(key + ": " + value)
+logger.info("My user_id is: " + my_user_id)
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
@@ -61,6 +55,7 @@ stale_message_count = -1
 loop_count = 0
 timer_count = 0
 while order_book.message_count < 1000000000000:
+    logger.info("Loop is beginning.")
     loop_count += 1
     my_MA.count += 1
     sma = my_MA.add_value(order_book.trade_price)
@@ -70,17 +65,17 @@ while order_book.message_count < 1000000000000:
             order_book.valid_sma = True
             order_book.short_std = my_MA.get_weighted_std(5*60) * 2 
             order_book.long_std = my_MA.get_weighted_std(30*60)
-            logging.info('Price: ' + order_book.trade_price + '\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}'.format(order_book.get_pnl(), order_book.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std))
+            logger.info('Price: ' + order_book.trade_price + '\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}'.format(order_book.get_pnl(), order_book.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std))
         
         else:
-            logging.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
-            logging.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(sma, order_book.bid_theo, order_book.ask_theo))
+            logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
+            logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(sma, order_book.bid_theo, order_book.ask_theo))
     
     time.sleep(1)
     
-    if ((loop_count - timer_count)>15):
+    if ((loop_count - timer_count) > 15):
         timer_count = loop_count
-        logging.warning("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
+        logger.warning("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
             if config.connection_notifications:
                 slack.send_message_to_slack("Connection has stopped. Restarting.")
@@ -104,9 +99,9 @@ while order_book.message_count < 1000000000000:
     # Print Status Message:
     if (my_MA.count - status_message_count) > 30:
         status_message_count = my_MA.count
-        logging.warning("-----Printing Status Message: -----")
-        logging.warning("Net Position: " + str(order_book.net_position))
-        logging.warning("Num Buy Levels: " + str(order_book.buy_levels))
-        logging.warning("Num Sell Levels: " + str(order_book.sell_levels))
+        logger.warning("-----Printing Status Message: -----")
+        logger.warning("Net Position: " + str(order_book.net_position))
+        logger.warning("Num Buy Levels: " + str(order_book.buy_levels))
+        logger.warning("Num Sell Levels: " + str(order_book.sell_levels))
 
 order_book.close()

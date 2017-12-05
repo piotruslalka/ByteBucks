@@ -4,11 +4,17 @@ import time
 import logging
 from math import sqrt
 
-logger = logging.getLogger('simple_example')
+# Logging Settings
+logger = logging.getLogger('botLog')
+
+
 class MovingAverageCalculation(object):
     """ A moving average class """
     
     def __init__(self, window=10*60, std_window = 0):
+        
+        logger.info("Entered into the MovingAverageCalculation Class!")
+                
         self.data = []
         self.window = window
         if std_window==0:

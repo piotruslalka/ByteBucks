@@ -7,7 +7,7 @@ from decimal import Decimal
 from datetime import datetime
 
 
-
+logger = logging.getLogger('botLog')
 
 
 class OrderBookConsole(OrderBook):
@@ -15,6 +15,9 @@ class OrderBookConsole(OrderBook):
 
     def __init__(self, product_id=None, keys=None):
         super(OrderBookConsole, self).__init__(product_id=product_id)
+
+        logger.info("Entered into the OrderBook Class!")
+
 
         # latest values of bid-ask spread
         self._bid = None
@@ -30,9 +33,9 @@ class OrderBookConsole(OrderBook):
         self.valid_sma = False
         self.short_std = 0
         self.long_std = 0
-        self.order_size = 0.02
-        self.buy_initial_offset = 10
-        self.sell_initial_offset = 10
+        self.order_size = 0.011
+        self.buy_initial_offset = 100
+        self.sell_initial_offset = 100
         self.buy_additional_offset = 2
         self.sell_additional_offset = 2
         self.bid_theo = 0
@@ -45,6 +48,7 @@ class OrderBookConsole(OrderBook):
         self.min_tick = round(Decimal(0.01), 2)
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'])
+        
 
     def on_message(self, message):
         super(OrderBookConsole, self).on_message(message)
