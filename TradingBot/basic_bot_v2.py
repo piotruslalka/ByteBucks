@@ -3,6 +3,7 @@ import config
 import logging
 import numpy as np
 import slack
+import os.path
 
 from moving_average import MovingAverageCalculation
 from OrderBook import OrderBookConsole
@@ -10,25 +11,46 @@ from decimal import Decimal
 from datetime import datetime
 
 # Logging Settings
-logger = logging.getLogger('botLog')
+logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
 
+# Create Console Handler and set level to INFO
+handler = logging.StreamHandler()
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# Create Error file handler and set level to ERROR
+handler = logging.FileHandler(os.path.join("C:", "error_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+handler.setLevel(logging.ERROR)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
+# Create Debug file handler and set level to DEBUG
+handler = logging.FileHandler(os.path.join("C:", "debug_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 # Create file handler which logs debug messages
-fh = logging.FileHandler("botLog_" + time.strftime("%Y%m%d_%H%M%S") + ".log")
-fh.setLevel(logging.DEBUG)
+#fh = logging.FileHandler("botLog_" + time.strftime("%Y%m%d_%H%M%S") + ".log")
+#fh.setLevel(logging.DEBUG)
  
 # Create console handler with a higher Log Level
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
+#ch = logging.StreamHandler()
+#ch.setLevel(logging.INFO)
  
 # Create formatter and add it to the handlers
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-ch.setFormatter(formatter)
-formatter2 = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-fh.setFormatter(formatter2)
+#formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+#ch.setFormatter(formatter)
+#formatter2 = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+#fh.setFormatter(formatter2)
  
 # add the handlers to logging
-logger.addHandler(fh)
+#logger.addHandler(fh)
 
 
 # Log my Keys
