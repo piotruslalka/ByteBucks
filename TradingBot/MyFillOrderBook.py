@@ -4,13 +4,17 @@ import config
 from gdax.authenticated_client import AuthenticatedClient
 
 # Logging Settings
-logging.basicConfig(filename='example.log', level=logging.DEBUG)
+logger = logging.getLogger('botLog')
+
 
 class MyFillOrderBook(AuthenticatedClient):
     """ This is where I store all my order and fill information """
     
     def __init__(self, key, b64secret, passphrase):
         super(MyFillOrderBook, self).__init__(key=key, b64secret=b64secret, passphrase=passphrase)
+        
+        logger.info("Entered into the MyFillOrderBook Class!")
+        
         self.my_buy_fills = []
         self.my_sell_fills = []
         self.my_buy_orders = []
