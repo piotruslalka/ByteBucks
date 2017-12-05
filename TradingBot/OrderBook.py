@@ -55,7 +55,6 @@ class OrderBookConsole(OrderBook):
         super(OrderBookConsole, self).on_message(message)
             
         self.message_count += 1    
-        #logging.debug("Message Count: " + str(self.message_count))
 
         # Calculate newest bid-ask spread
         bid = self.get_bid()
@@ -76,131 +75,18 @@ class OrderBookConsole(OrderBook):
             self._bid_depth = bid_depth
             self._ask_depth = ask_depth
             self._spread =  ask - bid
-            logging.debug('bid: {:.3f} @ {:.2f}\task: {:.3f} @ {:.2f}\tspread: {:.2f}'.format(bid_depth, bid, ask_depth, ask, self._spread))
+            logger.debug('Bid/Ask Updated - Bid: {:.3f} @ {:.2f}\tAsk: {:.3f} @ {:.2f}\tSpread: {:.2f}'.format(bid_depth, bid, ask_depth, ask, self._spread))
             
-            # Since the bid/ask changed. Let's see if we need to place a trade.
-            if self.valid_sma:
-                # Update Theos
-                self.net_position = self.buy_levels - self.sell_levels
-                std_offset = max(self.short_std, self.long_std)
-                
-                if self.net_position == 0:
-                    # We are flat
-                    self.bid_theo = self.sma - self.buy_initial_offset - std_offset
-                    self.ask_theo = self.sma + self.sell_initial_offset + std_offset
-                    
-                elif self.net_position > 0:
-                    # We are long
-                    if self.net_position > 2:
-                        self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
-                        self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1) * 0.75) - (self.buy_additional_offset * ((self.net_position + 1 - 2) * (self.net_position + 1 - 2)))
-                    
-                    else:
-                        self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
-                        self.ask_theo = self.sma
-                    
-                else:
-                    # We are short
-                    if self.net_position < -2:
-                        self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
-                        self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1) * 0.75) + (self.sell_additional_offset * ((self.net_position - 1 + 2) * (self.net_position - 1 + 2)))
-                        
-                    else:                
-                        self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
-                        self.bid_theo = self.sma
-                    
-                if ask < self.bid_theo:
-                    # We want to place a Buy Order
-                    logging.info("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
-                             + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
-                
-                    if round(Decimal(self._spread), 2) == self.min_tick:
-                        logging.info("Spread: " + str(self._spread))
-                        clean_bid = '{:.2f}'.format(bid, 2)
-                        logging.info("Order Price: " + clean_bid)
-                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.3f}'.format(self.order_size))
-                        if order_successful:
-                            self.buy_levels += 1
-                            logging.warning("Buy Levels: " + str(self.buy_levels))
-                            if config.place_notifications:
-                                slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
-                            
-                            self.pnl -= Decimal(bid)*Decimal(self.order_size)
-
-                        else:
-                            # Order did not go through... Try again.
-                            logging.critical("Order Rejected... Trying again")
-                            logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
-
-                    else:
-                        logging.info("Spread > 0.01: " + str(self._spread))
-                        #clean_bid = '{:.2f}'.format(bid + self.min_tick, 2)
-                        clean_bid = '{:.2f}'.format(bid, 2)
-                        logging.info("Order Price: " + clean_bid)
-                        order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.3f}'.format(self.order_size))
-                        if order_successful:
-                            self.buy_levels += 1
-                            logging.warning("Buy Levels: " + str(self.buy_levels))
-                            if config.place_notifications:
-                                slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
-                            
-                            self.pnl -= Decimal(bid)*Decimal(self.order_size)
-
-                        else:
-                            # Order did not go through... Try again.
-                            logging.critical("Order Rejected... Trying again")
-                            logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
-
-                if bid > self.ask_theo:
-                    # We want to place a Sell Order
-                    logging.info("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
-                                  + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
-                          
-                    if round(Decimal(self._spread), 2) == self.min_tick:
-                        logging.info("Spread: " + str(self._spread))
-                        clean_ask = '{:.2f}'.format(ask, 2)
-                        logging.info("Order Price: " + clean_ask)
-                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=clean_ask, size='{:.3f}'.format(self.order_size))
-                        if order_successful:
-                            self.sell_levels += 1
-                            logging.warning("Sell Levels: " + str(self.sell_levels))
-                            if config.place_notifications:
-                                slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
-                            
-                            self.pnl += Decimal(ask)*Decimal(self.order_size)
-                            
-                        else:
-                            # Order did not go through... Try again.
-                            logging.critical("Order Rejected... Trying again")
-                            logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
-
-                    else:
-                        logging.info("Spread > 0.01: " + str(self._spread))
-                        #clean_ask = '{:.2f}'.format(ask - self.min_tick, 2)
-                        clean_ask = '{:.2f}'.format(ask, 2)
-                        logging.info("Order Price: " + clean_ask)
-                        order_successful = self.auth_client.place_my_limit_order(side='sell', price=(clean_ask), size='{:.3f}'.format(self.order_size))
-                        if order_successful:
-                            self.sell_levels += 1
-                            logging.warning("Sell Levels: " + str(self.sell_levels))
-                            if config.place_notifications:
-                                slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
-                            
-                            self.pnl += Decimal(ask)*Decimal(self.order_size)
-                            
-                        else:
-                            # Order did not go through... Try again
-                            logging.critical("Order Rejected... Trying again")
-                            logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
-
-            
+            # See if we need to place a trade
+            self.on_bidask_update()
+    
         # See if there is a trade
         if message['type'] == 'match':
             self.trade_price = message['price']
             self.trade_size = message['size']
             self.trade_side = message['side']
             logging.info('Trade: {}: {:.3f} @ {:.2f}'.format(self.trade_side.title(), Decimal(self.trade_size), Decimal(self.trade_price)))
-
+    
         # See if there is something from me
         if 'user_id' in message:
             logging.warning("user_id - " + message['user_id'] + " found in message.")
@@ -214,12 +100,12 @@ class OrderBookConsole(OrderBook):
                     logging.warning("We've entered a limit order")
                     for key, value in message.items():
                         logging.warning(key + ": " + str(value) + "\n")
-
+    
                     # Send the order to the orderbook
                     self.auth_client.add_my_order(message)
                 else:
                     logging.critical("We had a message type 'received' with an order_type other than limit: " + message['order_type'])
-
+    
             
             if message['type'] == 'match':
                 self.auth_client.add_my_fill(message)
@@ -229,6 +115,125 @@ class OrderBookConsole(OrderBook):
                 if config.fill_notifications:
                     slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), Decimal(message['size']), Decimal(message['price']), str(datetime.now())))
                 
+            
+    def on_bidask_update(self):
+# Since the bid/ask changed. Let's see if we need to place a trade.
+        if self.valid_sma:
+            # Update Theos
+            self.net_position = self.buy_levels - self.sell_levels
+            std_offset = max(self.short_std, self.long_std)
+            
+            if self.net_position == 0:
+                # We are flat
+                self.bid_theo = self.sma - self.buy_initial_offset - std_offset
+                self.ask_theo = self.sma + self.sell_initial_offset + std_offset
+                
+            elif self.net_position > 0:
+                # We are long
+                if self.net_position > 2:
+                    self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
+                    self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1) * 0.75) - (self.buy_additional_offset * ((self.net_position + 1 - 2) * (self.net_position + 1 - 2)))
+                
+                else:
+                    self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
+                    self.ask_theo = self.sma
+                
+            else:
+                # We are short
+                if self.net_position < -2:
+                    self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
+                    self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1) * 0.75) + (self.sell_additional_offset * ((self.net_position - 1 + 2) * (self.net_position - 1 + 2)))
+                    
+                else:                
+                    self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
+                    self.bid_theo = self.sma
+                
+            if self._ask < self.bid_theo:
+                # We want to place a Buy Order
+                logging.info("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
+                         + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
+            
+                if round(Decimal(self._spread), 2) == self.min_tick:
+                    logging.info("Spread: " + str(self._spread))
+                    clean_bid = '{:.2f}'.format(bid, 2)
+                    logging.info("Order Price: " + clean_bid)
+                    order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.3f}'.format(self.order_size))
+                    if order_successful:
+                        self.buy_levels += 1
+                        logging.warning("Buy Levels: " + str(self.buy_levels))
+                        if config.place_notifications:
+                            slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
+                        
+                        self.pnl -= Decimal(bid)*Decimal(self.order_size)
+
+                    else:
+                        # Order did not go through... Try again.
+                        logging.critical("Order Rejected... Trying again")
+                        logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
+
+                else:
+                    logging.info("Spread > 0.01: " + str(self._spread))
+                    #clean_bid = '{:.2f}'.format(bid + self.min_tick, 2)
+                    clean_bid = '{:.2f}'.format(bid, 2)
+                    logging.info("Order Price: " + clean_bid)
+                    order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.3f}'.format(self.order_size))
+                    if order_successful:
+                        self.buy_levels += 1
+                        logging.warning("Buy Levels: " + str(self.buy_levels))
+                        if config.place_notifications:
+                            slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
+                        
+                        self.pnl -= Decimal(bid)*Decimal(self.order_size)
+
+                    else:
+                        # Order did not go through... Try again.
+                        logging.critical("Order Rejected... Trying again")
+                        logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
+
+            if self._bid > self.ask_theo:
+                # We want to place a Sell Order
+                logging.info("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
+                              + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                      
+                if round(Decimal(self._spread), 2) == self.min_tick:
+                    logging.info("Spread: " + str(self._spread))
+                    clean_ask = '{:.2f}'.format(ask, 2)
+                    logging.info("Order Price: " + clean_ask)
+                    order_successful = self.auth_client.place_my_limit_order(side='sell', price=clean_ask, size='{:.3f}'.format(self.order_size))
+                    if order_successful:
+                        self.sell_levels += 1
+                        logging.warning("Sell Levels: " + str(self.sell_levels))
+                        if config.place_notifications:
+                            slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
+                        
+                        self.pnl += Decimal(ask)*Decimal(self.order_size)
+                        
+                    else:
+                        # Order did not go through... Try again.
+                        logging.critical("Order Rejected... Trying again")
+                        logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
+
+                else:
+                    logging.info("Spread > 0.01: " + str(self._spread))
+                    #clean_ask = '{:.2f}'.format(ask - self.min_tick, 2)
+                    clean_ask = '{:.2f}'.format(ask, 2)
+                    logging.info("Order Price: " + clean_ask)
+                    order_successful = self.auth_client.place_my_limit_order(side='sell', price=(clean_ask), size='{:.3f}'.format(self.order_size))
+                    if order_successful:
+                        self.sell_levels += 1
+                        logging.warning("Sell Levels: " + str(self.sell_levels))
+                        if config.place_notifications:
+                            slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
+                        
+                        self.pnl += Decimal(ask)*Decimal(self.order_size)
+                        
+                    else:
+                        # Order did not go through... Try again
+                        logging.critical("Order Rejected... Trying again")
+                        logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
+
+        
+
 
     def get_pnl(self):
         return self.pnl + self.net_position * Decimal(self.trade_price) * Decimal(self.order_size)
