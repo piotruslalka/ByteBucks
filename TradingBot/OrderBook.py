@@ -1,5 +1,6 @@
 import logging
 import config
+import slack
 
 from MyFillOrderBook import MyFillOrderBook
 from gdax import OrderBook
@@ -150,12 +151,12 @@ class OrderBookConsole(OrderBook):
                 
             if self._ask < self.bid_theo:
                 # We want to place a Buy Order
-                logging.info("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(bid) + "\t" 
-                         + "Ask: " + str(ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
+                logging.info("Ask is lower than Bid Theo, we are placing a Buy Order at:" + str(self._bid) + "\t" 
+                         + "Ask: " + str(self._ask) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
             
                 if round(Decimal(self._spread), 2) == self.min_tick:
                     logging.info("Spread: " + str(self._spread))
-                    clean_bid = '{:.2f}'.format(bid, 2)
+                    clean_bid = '{:.2f}'.format(self._bid, 2)
                     logging.info("Order Price: " + clean_bid)
                     order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.3f}'.format(self.order_size))
                     if order_successful:
@@ -164,17 +165,17 @@ class OrderBookConsole(OrderBook):
                         if config.place_notifications:
                             slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
                         
-                        self.pnl -= Decimal(bid)*Decimal(self.order_size)
+                        self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
 
                     else:
                         # Order did not go through... Try again.
                         logging.critical("Order Rejected... Trying again")
-                        logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
+                        logging.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
 
                 else:
                     logging.info("Spread > 0.01: " + str(self._spread))
                     #clean_bid = '{:.2f}'.format(bid + self.min_tick, 2)
-                    clean_bid = '{:.2f}'.format(bid, 2)
+                    clean_bid = '{:.2f}'.format(self._bid, 2)
                     logging.info("Order Price: " + clean_bid)
                     order_successful = self.auth_client.place_my_limit_order(side='buy', price=clean_bid, size='{:.3f}'.format(self.order_size))
                     if order_successful:
@@ -183,21 +184,21 @@ class OrderBookConsole(OrderBook):
                         if config.place_notifications:
                             slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_bid, self._spread, str(datetime.now())))
                         
-                        self.pnl -= Decimal(bid)*Decimal(self.order_size)
+                        self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
 
                     else:
                         # Order did not go through... Try again.
                         logging.critical("Order Rejected... Trying again")
-                        logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
+                        logging.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
 
             if self._bid > self.ask_theo:
                 # We want to place a Sell Order
-                logging.info("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(ask) + "\t"
-                              + "Bid: " + str(bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                logging.info("Bid is Higher than Ask Theo, we are placing a Sell order at:" + str(self._ask) + "\t"
+                              + "Bid: " + str(self._bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
                       
                 if round(Decimal(self._spread), 2) == self.min_tick:
                     logging.info("Spread: " + str(self._spread))
-                    clean_ask = '{:.2f}'.format(ask, 2)
+                    clean_ask = '{:.2f}'.format(self._ask, 2)
                     logging.info("Order Price: " + clean_ask)
                     order_successful = self.auth_client.place_my_limit_order(side='sell', price=clean_ask, size='{:.3f}'.format(self.order_size))
                     if order_successful:
@@ -206,17 +207,17 @@ class OrderBookConsole(OrderBook):
                         if config.place_notifications:
                             slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
                         
-                        self.pnl += Decimal(ask)*Decimal(self.order_size)
+                        self.pnl += Decimal(self._ask)*Decimal(self.order_size)
                         
                     else:
                         # Order did not go through... Try again.
                         logging.critical("Order Rejected... Trying again")
-                        logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
+                        logging.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
 
                 else:
                     logging.info("Spread > 0.01: " + str(self._spread))
                     #clean_ask = '{:.2f}'.format(ask - self.min_tick, 2)
-                    clean_ask = '{:.2f}'.format(ask, 2)
+                    clean_ask = '{:.2f}'.format(self._ask, 2)
                     logging.info("Order Price: " + clean_ask)
                     order_successful = self.auth_client.place_my_limit_order(side='sell', price=(clean_ask), size='{:.3f}'.format(self.order_size))
                     if order_successful:
@@ -225,12 +226,12 @@ class OrderBookConsole(OrderBook):
                         if config.place_notifications:
                             slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, clean_ask, self._spread, str(datetime.now())))
                         
-                        self.pnl += Decimal(ask)*Decimal(self.order_size)
+                        self.pnl += Decimal(self._ask)*Decimal(self.order_size)
                         
                     else:
                         # Order did not go through... Try again
                         logging.critical("Order Rejected... Trying again")
-                        logging.critical("Market Bid/Ask: " + str(bid) + " / " + str(ask))
+                        logging.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
 
         
 

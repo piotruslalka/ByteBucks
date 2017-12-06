@@ -95,10 +95,12 @@ while order_book.message_count < 1000000000000:
     
     if ((loop_count - timer_count) > 15):
         timer_count = loop_count
-        logger.warning("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
+        logger.info("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
             if config.connection_notifications:
                 slack.send_message_to_slack("Connection has stopped. Restarting.")
+                logger.error("Connection has stopped. Restarting")
+                
             
             buy_levels = order_book.buy_levels
             sell_levels = order_book.sell_levels
@@ -119,9 +121,9 @@ while order_book.message_count < 1000000000000:
     # Print Status Message:
     if (my_MA.count - status_message_count) > 30:
         status_message_count = my_MA.count
-        logger.warning("-----Printing Status Message: -----")
-        logger.warning("Net Position: " + str(order_book.net_position))
-        logger.warning("Num Buy Levels: " + str(order_book.buy_levels))
-        logger.warning("Num Sell Levels: " + str(order_book.sell_levels))
+        logger.info("-----Printing Status Message: -----")
+        logger.info("Net Position: " + str(order_book.net_position))
+        logger.info("Num Buy Levels: " + str(order_book.buy_levels))
+        logger.info("Num Sell Levels: " + str(order_book.sell_levels))
 
 order_book.close()
