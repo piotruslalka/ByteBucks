@@ -83,7 +83,7 @@ while order_book.message_count < 1000000000000:
     if long_sma != None:
         if my_MA.count > 30:
             short_sma =  my_MA.get_sma(30*60)
-            if abs(order_book.net_position)>5:
+            if (order_book.net_position > 4 and short_sma - long_sma < 1) or (order_book.net_position < -4 and short_sma - long_sma > 1):
                 use_long_sma = False
             elif abs(long_sma-short_sma) < 1:
                 use_long_sma = True
