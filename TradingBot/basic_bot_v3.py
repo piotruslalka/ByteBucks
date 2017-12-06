@@ -75,21 +75,32 @@ status_message_count = 0
 stale_message_count = -1
 loop_count = 0
 timer_count = 0
+use_long_sma = True
 while order_book.message_count < 1000000000000:
     loop_count += 1
     my_MA.count += 1
-    sma = my_MA.add_value(order_book.trade_price)
-    if sma != None:
+    long_sma = my_MA.add_value(order_book.trade_price)
+    if long_sma != None:
         if my_MA.count > 30:
-            order_book.sma = sma
+            short_sma =  my_MA.get_sma(30*60)
+            if abs(order_book.net_position)>5:
+                use_long_sma = False
+            elif abs(long_sma-short_sma) < 1:
+                use_long_sma = True
+            
+            if use_long_sma:
+                order_book.sma = long_sma
+            else:
+                order_book.sma = short_sma
+                
             order_book.valid_sma = True
             order_book.short_std = my_MA.get_weighted_std(5*60) * 2 
             order_book.long_std = my_MA.get_weighted_std(30*60)
-            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}'.format(Decimal(order_book.trade_price), order_book.get_pnl(), order_book.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std))
+            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tlSMA: {:.2f}\tsSMA: {:.2f}'.format(Decimal(order_book.trade_price), order_book.get_pnl(), order_book.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, long_sma, short_sma))
         
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
-            logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(sma, order_book.bid_theo, order_book.ask_theo))
+            logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(long_sma, order_book.bid_theo, order_book.ask_theo))
     
     time.sleep(1)
     
