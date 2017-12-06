@@ -2,6 +2,7 @@ import logging
 import config
 
 from gdax.authenticated_client import AuthenticatedClient
+from decimal import Decimal
 
 # Logging Settings
 logger = logging.getLogger('botLog')
@@ -26,15 +27,32 @@ class MyFillOrderBook(AuthenticatedClient):
         if(config.debug):
             return (True)
         
-        my_order = self.place_limit_order(product_id='BTC-USD', side=side, price=str(price), size=str(size), time_in_force='GTC', post_only=True)
-        logging.info(my_order)
+        str_price = str(price)
+        
+        logger.warning("We are placing a Buy Order at:" + str_price)
+
+        my_order = self.place_limit_order(product_id='BTC-USD', side=side, price=str_price, size=str(size), time_in_force='GTC', post_only=True)
+        logger.warning(my_order)
         
         # Check if limit order Rejected
-        if my_order['status'] == 'rejected':
-            logging.critical("ORDER REJECTED!")
-            return (False)
+        if 'status' in my_order:
+            if my_order['status'] == 'rejected':
+                logging.critical("ORDER REJECTED!")
+                return (False)
+            else:
+                logging.info("Saving Order...")
+                if (side == "buy"):
+                    self.my_buy_orders.append(my_order)
+                else:
+                    self.my_sell_orders.append(my_order)    
+                return (True)
+            
         else:
-            return (True)
+            logger.error("status is not in my_order")
+            logger.error(my_order)
+            return (False)
+        
+        
         
     def add_my_order(self, order):
         """ Add Order to book """
