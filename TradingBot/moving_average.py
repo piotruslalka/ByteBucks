@@ -11,16 +11,12 @@ logger = logging.getLogger('botLog')
 class MovingAverageCalculation(object):
     """ A moving average class """
     
-    def __init__(self, window=10*60, std_window = 0):
+    def __init__(self, window=10*60):
         
         logger.info("Entered into the MovingAverageCalculation Class!")
                 
         self.data = []
         self.window = window
-        if std_window==0:
-            self.std_window = window
-        else:
-            self.std_window = std_window
         self.count = 0
         
     def add_value(self, trade_price):
@@ -51,15 +47,15 @@ class MovingAverageCalculation(object):
                             
                 return (smas[-1])
             
-    def get_std(self, window=0):
-        if window==0:
-            window=self.std_window
+    def get_sma(self, window):
+        sma = np.mean(self.data[len(self.data)-min(window, self.count):len(self.data)])
+        return (sma)
+    
+    def get_std(self, window):
         std = np.std(self.data[len(self.data)-min(window, self.count):len(self.data)])
         return (std)
     
-    def get_weighted_std(self, window=0):
-        if window==0:
-            window=self.std_window
+    def get_weighted_std(self, window):
         data_points = min(window, self.count)
         weights = np.arange(data_points)
         mean = np.average(self.data[(len(self.data)-data_points):len(self.data)], weights = weights)

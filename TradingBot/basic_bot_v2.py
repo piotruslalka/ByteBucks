@@ -70,7 +70,7 @@ order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
 # Moving Average Initialization. Using 4 hour MA.
-my_MA = MovingAverageCalculation(window=25200, std_window=25200)
+my_MA = MovingAverageCalculation(window=25200)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
