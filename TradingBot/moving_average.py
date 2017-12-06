@@ -47,7 +47,9 @@ class MovingAverageCalculation(object):
                             
                 return (smas[-1])
             
-    def get_sma(self, window):
+    def get_sma(self, window=None):
+        if window == None:
+            window = self.window
         sma = np.mean(self.data[len(self.data)-min(window, self.count):len(self.data)])
         return (sma)
     
