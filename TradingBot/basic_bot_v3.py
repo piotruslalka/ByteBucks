@@ -35,23 +35,6 @@ formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-# Create file handler which logs debug messages
-#fh = logging.FileHandler("botLog_" + time.strftime("%Y%m%d_%H%M%S") + ".log")
-#fh.setLevel(logging.DEBUG)
- 
-# Create console handler with a higher Log Level
-#ch = logging.StreamHandler()
-#ch.setLevel(logging.INFO)
- 
-# Create formatter and add it to the handlers
-#formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-#ch.setFormatter(formatter)
-#formatter2 = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-#fh.setFormatter(formatter2)
- 
-# add the handlers to logging
-#logger.addHandler(fh)
-
 
 # Log my Keys
 my_user_id = config.my_user_id
