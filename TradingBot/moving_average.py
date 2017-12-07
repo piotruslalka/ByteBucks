@@ -11,12 +11,12 @@ logger = logging.getLogger('botLog')
 class MovingAverageCalculation(object):
     """ A moving average class """
     
-    def __init__(self, window=10*60):
+    def __init__(self, period=10*60):
         
         logger.info("Entered into the MovingAverageCalculation Class!")
                 
         self.data = []
-        self.window = window
+        self.period = period
         self.count = 0
         
     def add_value(self, trade_price):
@@ -26,22 +26,22 @@ class MovingAverageCalculation(object):
             
         else:
             trade_price = float(trade_price)
-            if len(self.data) < self.window:
+            if len(self.data) < self.period:
                 # Start up with window
-                while len(self.data) < self.window:
+                while len(self.data) < self.period:
                     self.data.append(trade_price)
                 
-                weights = np.repeat(1.0, self.window)/self.window
+                weights = np.repeat(1.0, self.period)/self.period
                 smas = np.convolve(self.data, weights, 'valid')
                 return (smas[-1])
             
             else:
                 self.data.append(trade_price)
-                weights = np.repeat(1.0, self.window)/self.window
+                weights = np.repeat(1.0, self.period)/self.period
                 smas = np.convolve(self.data, weights, 'valid')
     
                 #Remove old data
-                if len(self.data) > self.window:
+                if len(self.data) > self.period:
                     del self.data[0]
                     logger.debug("Removing old data from MA.")
                             
@@ -49,8 +49,8 @@ class MovingAverageCalculation(object):
             
     def get_sma(self, window=None):
         if window == None:
-            window = self.window
-        sma = np.mean(self.data[len(self.data)-min(window, self.count):len(self.data)])
+            window = self.period
+        sma = np.mean(self.data[(len(self.data)-window):len(self.data)])
         return (sma)
     
     def get_std(self, window):
