@@ -105,6 +105,7 @@ while order_book.message_count < 1000000000000:
             buy_levels = order_book.buy_levels
             sell_levels = order_book.sell_levels
             current_pnl = order_book.pnl
+            order_book.close()
             order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
             order_book.buy_levels = buy_levels
             order_book.sell_levels = sell_levels
