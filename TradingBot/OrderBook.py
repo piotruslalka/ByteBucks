@@ -47,10 +47,7 @@ class OrderBookConsole(OrderBook):
         self.net_position = 0
         self.buy_levels = 0
         self.sell_levels = 0
-        self.outstanding_buy_orders = 0
-        self.outstanding_sell_orders = 0
-        self.outstanding_buy_order_info = None
-        self.outstanding_sell_order_info = None
+        self.num_order_rejects = 0
         self.pnl = 0
         self.num_rejections = 0
         self.min_tick = round(Decimal(0.01), 2)
@@ -121,18 +118,18 @@ class OrderBookConsole(OrderBook):
 
                 # Update Net Position
                 if message['side'] == 'buy':
-                    self.net_position = self.net_position + Decimal(message['size'])
+                    self.net_position = self.net_position + Float(message['size'])
                     logger.critical("Clearing Out Dictionary (BEFORE)...")
                     logger.critical(self.auth_client.my_buy_orders)
-                    if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['order_id']:
+                    if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['id']:
                         self.auth_client.my_buy_orders.clear()
                         logger.critical("Clearing Out Dictionary (AFTER)...")
                         logger.critical(self.auth_client.my_buy_orders)
                 else:
-                    self.net_position = self.net_position - Decimal(message['size'])
+                    self.net_position = self.net_position - Float(message['size'])
                     logger.critical("Clearing Out Dictionary (BEFORE)...")
                     logger.critical(self.auth_client.my_sell_orders)
-                    if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['order_id']:
+                    if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['id']:
                         self.auth_client.my_sell_orders.clear()
                         logger.critical("Clearing Out Dictionary (AFTER)...")
                         logger.critical(self.auth_client.my_sell_orders)
@@ -147,12 +144,15 @@ class OrderBookConsole(OrderBook):
 
         if self.valid_sma:
             self.update_theos()
-            self.check_if_action_needed()
+            if (self.num_order_rejects < 3):
+                self.check_if_action_needed()
+            else:
+                logger.critical("We have more than 2 rejects. Waiting a second...")
 
     def update_theos(self):
         # Update Theos
 
-        self.net_position = self.buy_levels - self.sell_levels
+        #self.net_position = self.buy_levels - self.sell_levels
         std_offset = max(self.short_std, self.long_std)
 
         if self.net_position == 0:
@@ -193,17 +193,25 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_buy_orders)  == 1):
                 my_order_price = self.auth_client.my_buy_orders[0]['price']
 
-                if (self._bid < (self.bid_theo + (self.min_tick*100))):
+                if (self._bid < (Decimal(self.bid_theo) + (self.min_tick*100))):
                     # Keep Order
-                    if (self._bid < (my_order_price + (self.min_tick*10))):
+                    if (self._bid < (Decimal(my_order_price) + (self.min_tick*100))):
                         # Keep Order
                         logger.warning("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
                     else:
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
                         # Cancel Current Order
+                        logger.warning("Cancelling Order")
+                        logger.warning(self.auth_client.my_buy_orders)
                         self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                        
+                        # Remove the Order from the Order Dictionary
+                        self.auth_client.my_buy_orders.clear()
+                        logger.warning(self.auth_client.my_buy_orders)
+                        
                         # Place new Order
-                        order_price = Decimal(self._bid) + Decimal(self.min_tick)
+                        logger.warning("Placing New Order")
+                        order_price = Decimal(self._bid)# + Decimal(self.min_tick)
                         order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = self.order_size)
 
                         if order_successful:
@@ -211,12 +219,14 @@ class OrderBookConsole(OrderBook):
                             #    slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._bid, self._spread, str(datetime.now())))
 
                             #self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
-                            logger.warning("Order successfully placed.")
+                            logger.warning("Order successfully replaced.")
+                            self.num_order_rejects = 0
 
                         else:
                             # Order did not go through... Try again.
                             logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
                             logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                            self.num_order_rejects = self.num_order_rejects + 1
 
                 else:
                     # Remove Order? No need to.. lets just leave it out there...
@@ -232,7 +242,7 @@ class OrderBookConsole(OrderBook):
 
                 logger.info("Bid is lower than Bid Theo, we are placing a Buy Order at:" + str(self._bid + self.min_tick) + "\t"
                                 + "Bid: " + str(self._bid) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
-                order_price = Decimal(self._bid) + Decimal(self.min_tick)
+                order_price = Decimal(self._bid)# + Decimal(self.min_tick)
                 order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = self.order_size)
 
                 if order_successful:
@@ -241,11 +251,12 @@ class OrderBookConsole(OrderBook):
 
                     #self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
                     logger.warning("Order successfully placed.")
-
+                    self.num_order_rejects = 0
                 else:
                     # Order did not go through... Try again.
                     logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
                     logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                    self.num_order_rejects = self.num_order_rejects + 1
 
 
         if (len(self.auth_client.my_sell_orders) > 0):
@@ -254,25 +265,36 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_sell_orders) == 1):
                 my_order_price = self.auth_client.my_sell_orders[0]['price']
 
-                if (self._ask > (self.ask_theo - (self.min_tick * 100))):
+                if (self._ask > (Decimal(self.ask_theo) - (self.min_tick * 100))):
                     # Keep Order
-                    if (self._ask < (my_order_price + (self.min_tick*10))):
+                    if (self._ask > (Decimal(my_order_price) - (self.min_tick*100))):
                         # Keep Order
                         logger.warning("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
                     else:
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
                         # Cancel Current Order
+                        logger.warning("Cancelling Order")
+                        logger.warning(self.auth_client.my_sell_orders)
                         self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                        
+                        # Remove the Order from the Order Dictionary
+                        self.auth_client.my_sell_orders.clear()
+                        logger.warning(self.auth_client.my_sell_orders)
+                        
                         # Place new order
-                        order_price = Decimal(self._ask) - Decimal(self.min_tick)
+                        logger.warning("Placing New Order")
+                        order_price = Decimal(self._ask)# - Decimal(self.min_tick)
                         order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = self.order_size)
 
                         if order_successful:
-                            logger.warning("Order successfully placed.")
+                            logger.warning("Order successfully replaced.")
+                            self.num_order_rejects = 0
                         else:
                             # Order did not go through... Try again.
                             logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
                             logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                            self.num_order_rejects = self.num_order_rejects + 1
+                            
                 else:
                     # Remove Order? No Need to... lets just leave it out there..
                     logger.warning("No need to remove order because the ask is now more than 100 ticks from the Ask Theo.")
@@ -284,8 +306,8 @@ class OrderBookConsole(OrderBook):
                 # We want to place a Sell Order
 
                 logger.info("Ask is Higher than Ask Theo, we are placing a Sell order at:" + str(self._ask - self.min_tick) + "\t"
-                              + "Bid: " + str(self._bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
-                order_price = Decimal(self._ask) - Decimal(self.min_tick)
+                              + "Ask: " + str(self._ask) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                order_price = Decimal(self._ask)# - Decimal(self.min_tick)
                 order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = self.order_size)
 
                 if order_successful:
@@ -294,10 +316,12 @@ class OrderBookConsole(OrderBook):
                     #
                     #     self.pnl += Decimal(self._ask)*Decimal(self.order_size)
                     logger.warning("Order successfully placed.")
+                    self.num_order_rejects = 0
                 else:
                     # Order did not go through... Try again.
                     logger.critical("Order Rejected... Trying again")
                     logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                    self.num_order_rejects = self.num_order_rejects + 1
 
 
     def get_pnl(self):

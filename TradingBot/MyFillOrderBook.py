@@ -32,7 +32,7 @@ class MyFillOrderBook(AuthenticatedClient):
         str_price = str(price)
         str_size = str(size)
         
-        logger.warning("We are placing a Buy Order at:" + str_price)
+        logger.warning("We are placing an Order at:" + str_price)
 
         my_order = self.place_limit_order(product_id='BTC-USD', side=side, price=str_price, size=str_size, time_in_force='GTC', post_only=True)
         logger.warning(my_order)
@@ -46,8 +46,10 @@ class MyFillOrderBook(AuthenticatedClient):
                 logging.info("Saving Order...")
                 if (side == "buy"):
                     self.my_buy_orders.append(my_order)
+                    logging.critical(self.my_buy_orders)
                 else:
                     self.my_sell_orders.append(my_order)    
+                    logging.critical(self.my_sell_orders)
                 return (True)
             
         else:

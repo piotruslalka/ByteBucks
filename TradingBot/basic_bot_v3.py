@@ -63,6 +63,7 @@ while order_book.message_count < 1000000000000:
     loop_count += 1
     my_MA.count += 1
     long_sma = my_MA.add_value(order_book.trade_price)
+    
     if long_sma != None:
         if my_MA.count > 30:
             short_sma =  my_MA.get_sma(30*60)
@@ -88,6 +89,10 @@ while order_book.message_count < 1000000000000:
     time.sleep(1)
     
     if ((loop_count - timer_count) > 15):
+        if order_book.num_order_rejects > 0:
+            logger.critical("Setting Rejects back to 0")
+            order_book.num_order_rejects = 0
+            
         timer_count = loop_count
         logger.info("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
