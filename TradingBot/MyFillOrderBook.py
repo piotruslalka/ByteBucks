@@ -20,6 +20,8 @@ class MyFillOrderBook(AuthenticatedClient):
         self.my_sell_fills = []
         self.my_buy_orders = []
         self.my_sell_orders = []
+        self.my_buy_order_acks = []
+        self.my_sell_order_acks = []
         self.my_PnL = None
         
     def place_my_limit_order(self, side, price, size='0.01'):
@@ -28,10 +30,11 @@ class MyFillOrderBook(AuthenticatedClient):
             return (True)
         
         str_price = str(price)
+        str_size = str(size)
         
         logger.warning("We are placing a Buy Order at:" + str_price)
 
-        my_order = self.place_limit_order(product_id='BTC-USD', side=side, price=str_price, size=str(size), time_in_force='GTC', post_only=True)
+        my_order = self.place_limit_order(product_id='BTC-USD', side=side, price=str_price, size=str_size, time_in_force='GTC', post_only=True)
         logger.warning(my_order)
         
         # Check if limit order Rejected

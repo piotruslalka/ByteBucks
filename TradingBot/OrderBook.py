@@ -8,6 +8,7 @@ from gdax import OrderBook
 from decimal import Decimal
 from datetime import datetime
 from math import sqrt
+from _decimal import Decimal
 
 logger = logging.getLogger('botLog')
 
@@ -93,34 +94,51 @@ class OrderBookConsole(OrderBook):
             self.trade_price = message['price']
             self.trade_size = message['size']
             self.trade_side = message['side']
-            logger.info('Trade: {}: {:.3f} @ {:.2f}'.format(self.trade_side.title(), Decimal(self.trade_size), Decimal(self.trade_price)))
+            logger.debug('Trade: {}: {:.3f} @ {:.2f}'.format(self.trade_side.title(), Decimal(self.trade_size), Decimal(self.trade_price)))
 
         # See if something private came in the message (authenticated data)
         if 'user_id' in message:
-            logger.warning("user_id - " + message['user_id'] + " found in message.")
-            for key, value in message.items():
-                logger.debug(key + ": " + str(value) + "\n")
+            # We received a private message. Please log it.
+            logger.warning("***Private Message Received from Websocket***: user_id - " + message['user_id'] + " found in message.")
+            logger.debug(message)
 
             if message['type'] == 'received':
-                logger.warning("message_type - " + message['type'] + " found in message.")
+                # Order Place was Acknowledged.
                 if message['order_type'] == 'limit':
-                    # We entered a limit order
-                    logger.warning("We've entered a limit order")
-                    for key, value in message.items():
-                        logger.warning(key + ": " + str(value) + "\n")
-
+                    logger.warning("***Limit Order Place was Acknowledged***")
                     # Send the order to the orderbook
-                    self.auth_client.add_my_order(message)
+                    if message['side'] == 'buy':
+                        self.auth_client.my_buy_order_acks.append(message)
+                    else:
+                        self.auth_client.my_sell_order_acks.append(message)
                 else:
                     logger.critical("We had a message type 'received' with an order_type other than limit: " + message['order_type'])
 
-
             if message['type'] == 'match':
-                self.auth_client.add_my_fill(message)
-                logger.warning("Got a trade. trade_id: " + str(message['trade_id']))
-                logger.warning("Sending Slack Notification:")
+                # We recieved a fill message
+                logger.warning("***Received a Fill Message***")
                 logger.warning(message)
+
+                # Update Net Position
+                if message['side'] == 'buy':
+                    self.net_position = self.net_position + Decimal(message['size'])
+                    logger.critical("Clearing Out Dictionary (BEFORE)...")
+                    logger.critical(self.auth_client.my_buy_orders)
+                    if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['order_id']:
+                        self.auth_client.my_buy_orders.clear()
+                        logger.critical("Clearing Out Dictionary (AFTER)...")
+                        logger.critical(self.auth_client.my_buy_orders)
+                else:
+                    self.net_position = self.net_position - Decimal(message['size'])
+                    logger.critical("Clearing Out Dictionary (BEFORE)...")
+                    logger.critical(self.auth_client.my_sell_orders)
+                    if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['order_id']:
+                        self.auth_client.my_sell_orders.clear()
+                        logger.critical("Clearing Out Dictionary (AFTER)...")
+                        logger.critical(self.auth_client.my_sell_orders)
+
                 if config.fill_notifications:
+                    logger.warning("Sending Slack Notification:")
                     slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), Decimal(message['size']), Decimal(message['price']), str(datetime.now())))
 
 
@@ -168,71 +186,114 @@ class OrderBookConsole(OrderBook):
     def check_if_action_needed(self):
         # Check to see if we want to place any orders
 
-
-        
-
         # Check to see if we already placed an order
-        if (self.auth_client.my_buy_orders.count() > 0):
+        if (len(self.auth_client.my_buy_orders) > 0):
             # We have an order already on the exchange
-            
-            my_order_price = self.auth_client.my_buy_orders[0]['price']
-            
-            
-            if ((self._bid + (self.min_tick*100)) < self.bid_theo):
-                # Keep Order
-                if ((self._bid + self.min_tick) > my_order_price):
-                    # Update Bid to new price
-                    # Place New order at self.bid + 1 mintick higher 
-                    # Remove old order 
-                    
-                    
-                    
+
+            if (len(self.auth_client.my_buy_orders)  == 1):
+                my_order_price = self.auth_client.my_buy_orders[0]['price']
+
+                if (self._bid < (self.bid_theo + (self.min_tick*100))):
+                    # Keep Order
+                    if (self._bid < (my_order_price + (self.min_tick*10))):
+                        # Keep Order
+                        logger.warning("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
+                    else:
+                        # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
+                        # Cancel Current Order
+                        self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                        # Place new Order
+                        order_price = Decimal(self._bid) + Decimal(self.min_tick)
+                        order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = self.order_size)
+
+                        if order_successful:
+                            #if config.place_notifications:
+                            #    slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._bid, self._spread, str(datetime.now())))
+
+                            #self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
+                            logger.warning("Order successfully placed.")
+
+                        else:
+                            # Order did not go through... Try again.
+                            logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
+                            logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+
                 else:
-                    # Keep Old Order
+                    # Remove Order? No need to.. lets just leave it out there...
+                    logger.warning("No need to remove order because the bid is now more than 100 ticks from the Bid Theo.")
+
             else:
-                # Remove Order
-            
+                logger.critical("We have more than just one order in the order book. Something is wrong...")
+
         else:
-            # We do not currently have any active orders. 
+            # We do not currently have any active orders.
             if ((self._bid + self.min_tick) < self.bid_theo):
                 # We want to place a Buy Order
 
                 logger.info("Bid is lower than Bid Theo, we are placing a Buy Order at:" + str(self._bid + self.min_tick) + "\t"
                                 + "Bid: " + str(self._bid) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
-                
-                order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = self._bid, size = self.order_size)
-                
-                if order_successful:
-                    if config.place_notifications:
-                        slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._bid, self._spread, str(datetime.now())))
+                order_price = Decimal(self._bid) + Decimal(self.min_tick)
+                order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = self.order_size)
 
-                    self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
+                if order_successful:
+                    #if config.place_notifications:
+                    #    slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._bid, self._spread, str(datetime.now())))
+
+                    #self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
+                    logger.warning("Order successfully placed.")
 
                 else:
                     # Order did not go through... Try again.
-                    logger.critical("Order Rejected... Trying again")
+                    logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
                     logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
-                    
-                    
-        if (outstanding_sell_orders != 0):
 
-        
+
+        if (len(self.auth_client.my_sell_orders) > 0):
+            # We have a sell order already on the exchange
+
+            if (len(self.auth_client.my_sell_orders) == 1):
+                my_order_price = self.auth_client.my_sell_orders[0]['price']
+
+                if (self._ask > (self.ask_theo - (self.min_tick * 100))):
+                    # Keep Order
+                    if (self._ask < (my_order_price + (self.min_tick*10))):
+                        # Keep Order
+                        logger.warning("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
+                    else:
+                        # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
+                        # Cancel Current Order
+                        self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                        # Place new order
+                        order_price = Decimal(self._ask) - Decimal(self.min_tick)
+                        order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = self.order_size)
+
+                        if order_successful:
+                            logger.warning("Order successfully placed.")
+                        else:
+                            # Order did not go through... Try again.
+                            logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
+                            logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                else:
+                    # Remove Order? No Need to... lets just leave it out there..
+                    logger.warning("No need to remove order because the ask is now more than 100 ticks from the Ask Theo.")
+            else:
+                logger.critical("We have more than just one order in the order book. Somethin is wrong...")
         else:
-            # We do not currently have any active orders. 
-            if ((self._ask - self.min_tick) > self.ask_theo:
+            # We do not currently have any active orders.
+            if ((self._ask - self.min_tick) > self.ask_theo):
                 # We want to place a Sell Order
-                
+
                 logger.info("Ask is Higher than Ask Theo, we are placing a Sell order at:" + str(self._ask - self.min_tick) + "\t"
                               + "Bid: " + str(self._bid) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                order_price = Decimal(self._ask) - Decimal(self.min_tick)
+                order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = self.order_size)
 
-                order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = self._ask, size = self.order_size)
-                    
                 if order_successful:
-                    if config.place_notifications:
-                        slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._ask, self._spread, str(datetime.now())))
-
-                        self.pnl += Decimal(self._ask)*Decimal(self.order_size)
-
+                    # if config.place_notifications:
+                    #     slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._ask, self._spread, str(datetime.now())))
+                    #
+                    #     self.pnl += Decimal(self._ask)*Decimal(self.order_size)
+                    logger.warning("Order successfully placed.")
                 else:
                     # Order did not go through... Try again.
                     logger.critical("Order Rejected... Trying again")
