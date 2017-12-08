@@ -349,4 +349,4 @@ class OrderBookConsole(OrderBook):
 
 
     def get_pnl(self):
-        return self.pnl + self.net_position * float(self.trade_price) * float(self.order_size)
+        return self.pnl + self.real_position * float(self.trade_price)
