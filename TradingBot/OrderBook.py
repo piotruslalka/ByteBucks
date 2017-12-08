@@ -51,6 +51,9 @@ class OrderBookConsole(OrderBook):
         self.pnl = 0
         self.num_rejections = 0
         self.min_tick = round(0.01, 2)
+        self.min_order_size = round(0.01, 2)
+        self.sent_buy_cancel = False
+        self.sent_sell_cancel = False
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'])
 
@@ -120,10 +123,12 @@ class OrderBookConsole(OrderBook):
                     if message['side'] == 'buy' and len(self.auth_client.my_buy_orders) > 0:
                         if message['order_id'] == self.auth_client.my_buy_orders[0]['id']:
                             self.auth_client.my_buy_orders.clear()
+                            self.sent_buy_cancel = False
                             logger.warning(self.auth_client.my_buy_orders)
                     elif message['side'] == 'sell' and len(self.auth_client.my_sell_orders) > 0:
                         if message['order_id'] == self.auth_client.my_sell_orders[0]['id']:
                             self.auth_client.my_sell_orders.clear()
+                            self.sent_sell_cancel = False
                             logger.warning(self.auth_client.my_sell_orders)
                     else:
                         logger.critical("We have a message with side other than Buy or Sell.")
@@ -134,40 +139,43 @@ class OrderBookConsole(OrderBook):
                 logger.warning(message)
 
                 # Update Net Position
-                if message['side'] == 'buy':
+                if message['side'] == 'buy' and len(self.auth_client.my_buy_orders) > 0:
                     if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['id']:
                         fill_size = message['size']
                         logger.critical("Clearing Out Dictionary (BEFORE)...")
                         logger.critical(self.auth_client.my_buy_orders)
                         remaining_size = self.auth_client.my_buy_orders[0]['size'] - fill_size
                         if remaining_size > 0.001:
-                            self.pnl += fill_size * message['price']
+                            self.pnl -= fill_size * message['price']
+                            self.buy_levels += fill_size
                             self.real_position += fill_size
-                            self.net_position = self.real_position / self.order_size
+                            self.net_position = round(self.real_position / self.order_size)
                             self.auth_client.my_buy_orders[0]['size'] = remaining_size
                         else:
-                            self.pnl += self.auth_client.my_buy_orders[0]['size'] * message['price']
+                            self.pnl -= self.auth_client.my_buy_orders[0]['size'] * message['price']
+                            self.buy_levels += self.auth_client.my_buy_orders[0]['size']
                             self.real_position += self.auth_client.my_buy_orders[0]['size']
-                            self.net_position = self.real_position / self.order_size
+                            self.net_position = round(self.real_position / self.order_size)
                             self.auth_client.my_buy_orders.clear()
                             logger.critical("Clearing Out Dictionary (AFTER)...")
                             logger.critical(self.auth_client.my_buy_orders)
-                elif message['side'] == 'sell':
+                elif message['side'] == 'sell' and len(self.auth_client.my_sell_orders) > 0:
                     if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['id']:
                         fill_size = message['size']
                         logger.critical("Clearing Out Dictionary (BEFORE)...")
                         logger.critical(self.auth_client.my_sell_orders)
                         remaining_size = self.auth_client.my_sell_orders[0]['size'] - fill_size
                         if remaining_size > 0.001:
-                            self.pnl -= fill_size * message['price']
+                            self.pnl += fill_size * message['price']
+                            self.sell_levels += fill_size
                             self.real_position -= fill_size
-                            self.net_position = self.real_position / self.order_size
+                            self.net_position = round(self.real_position / self.order_size)
                             self.auth_client.my_sell_orders[0]['size'] = remaining_size
                         else:
-                            self.pnl -= self.auth_client.my_sell_orders[0]['size'] * message['price']
+                            self.pnl += self.auth_client.my_sell_orders[0]['size'] * message['price']
+                            self.sell_levels += self.auth_client.my_sell_orders[0]['size']
                             self.real_position -= self.auth_client.my_sell_orders[0]['size']
-                            self.net_position = self.real_position / self.order_size
-                            self.net_position = self.net_position - self.auth_client.my_sell_orders[0]['size']
+                            self.net_position = round(self.real_position / self.order_size)
                             self.auth_client.my_sell_orders.clear()
                             logger.critical("Clearing Out Dictionary (AFTER)...")
                             logger.critical(self.auth_client.my_sell_orders)
@@ -235,12 +243,16 @@ class OrderBookConsole(OrderBook):
 
                 if (self._bid < (self.bid_theo + (self.min_tick*100))):
                     # Keep Order
-                    if (self._bid > (my_order_price + (self.min_tick*1000))):
+                    if (self._bid > (my_order_price + (self.min_tick*100))):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
                         # Cancel Current Order
-                        logger.warning("Cancelling Order")
-                        logger.warning(self.auth_client.my_buy_orders)
-                        self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                        if (not self.sent_buy_cancel):
+                            logger.warning("Cancelling Order")
+                            logger.warning(self.auth_client.my_buy_orders)
+                            self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                            self.sent_buy_cancel = True
+                        else:
+                            logger.debug("Already sent buy cancel.")
                     else:
                         # Keep Order
                         logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
@@ -257,7 +269,12 @@ class OrderBookConsole(OrderBook):
                 order_price = self._bid
                 if self._spread > .01:
                     order_price += self.min_tick
-                order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = self.order_size)
+                    
+                place_size = self.order_size
+                if self.real_position < 2 * self.order_size and self.real_position > self.min_order_size:
+                    place_size = self.real_position
+                    
+                order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
                 logger.info("Bid is lower than Bid Theo, we are placing a Buy Order at:" + str(self._bid + self.min_tick) + "\t"
                                 + "Bid: " + str(self._bid) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
 
@@ -283,12 +300,16 @@ class OrderBookConsole(OrderBook):
 
                 if (self._ask > (self.ask_theo - (self.min_tick * 100))):
                     # Keep Order
-                    if (self._ask < (my_order_price - (self.min_tick * 1000))):
+                    if (self._ask < (my_order_price - (self.min_tick * 100))):
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
                         # Cancel Current Order
-                        logger.warning("Cancelling Order")
-                        logger.warning(self.auth_client.my_sell_orders)
-                        self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                        if (not self.sent_sell_cancel):
+                            logger.warning("Cancelling Order")
+                            logger.warning(self.auth_client.my_sell_orders)
+                            self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                            self.sent_sell_cancel = True
+                        else:
+                            logger.debug("Already sent sell cancel.")
                     else:
                         # Keep Order
                         logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
@@ -306,6 +327,9 @@ class OrderBookConsole(OrderBook):
                 if self._spread > .01:
                     order_price -= self.min_tick
 
+                place_size = self.order_size
+                if self.real_position < 2 * self.order_size and self.real_position > self.min_order_size:
+                    place_size = self.real_position
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = self.order_size)
                 logger.info("Ask is Higher than Ask Theo, we are placing a Sell order at:" + str(self._ask - self.min_tick) + "\t"

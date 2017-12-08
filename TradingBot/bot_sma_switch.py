@@ -79,6 +79,7 @@ while order_book.message_count < 1000000000000:
             order_book.valid_sma = True
             order_book.short_std = my_MA.get_weighted_std(5*60) * 2
             order_book.long_std = my_MA.get_weighted_std(30*60) / 2
+            #logger.info('RP:' + str(order_book.real_position) + ' pl:' + str(order_book.pnl) + ' NP:' + str(order_book.net_position))
             logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tlSMA: {:.2f}\tsSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, long_sma, short_sma))
 
         else:
@@ -102,11 +103,13 @@ while order_book.message_count < 1000000000000:
 
             buy_levels = order_book.buy_levels
             sell_levels = order_book.sell_levels
+            real_position = order_book.real_position
             current_pnl = order_book.pnl
             order_book.close()
             order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
             order_book.buy_levels = buy_levels
             order_book.sell_levels = sell_levels
+            order_book.real_position = real_position
             order_book.net_position = buy_levels-sell_levels
             order_book.pnl = current_pnl
             order_book.auth = True
@@ -119,6 +122,8 @@ while order_book.message_count < 1000000000000:
 
     # Print Status Message:
     if (my_MA.count - status_message_count) > 30:
+        #TODO: Verify that no working orders have been missed. 
+        
         status_message_count = my_MA.count
         logger.info("-----Printing Status Message: -----")
         logger.info("Net Position: " + str(order_book.net_position))
