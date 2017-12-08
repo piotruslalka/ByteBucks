@@ -29,8 +29,8 @@ class MyFillOrderBook(AuthenticatedClient):
         if(config.debug):
             return (True)
 
-        str_price = str(price)
-        str_size = str(size)
+        str_price = str(round(float(price), 2))
+        str_size = str(round(float(size), 8))
 
         logger.warning("We are placing an Order at:" + str_price)
 
@@ -45,10 +45,10 @@ class MyFillOrderBook(AuthenticatedClient):
             else:
                 logging.info("Saving Order...")
                 if (side == "buy"):
-                    self.my_buy_orders.append(clean_message(my_order))
+                    self.my_buy_orders.append(self.clean_message(my_order))
                     logging.critical(self.my_buy_orders)
                 else:
-                    self.my_sell_orders.append(clean_message(my_order))
+                    self.my_sell_orders.append(self.clean_message(my_order))
                     logging.critical(self.my_sell_orders)
                 return (True)
 
