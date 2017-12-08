@@ -269,11 +269,11 @@ class OrderBookConsole(OrderBook):
                 order_price = self._bid
                 if self._spread > .01:
                     order_price += self.min_tick
-                    
+
                 place_size = self.order_size
                 if self.real_position < 2 * self.order_size and self.real_position > self.min_order_size:
                     place_size = self.real_position
-                    
+
                 order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
                 logger.info("Bid is lower than Bid Theo, we are placing a Buy Order at:" + str(self._bid + self.min_tick) + "\t"
                                 + "Bid: " + str(self._bid) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
@@ -349,4 +349,4 @@ class OrderBookConsole(OrderBook):
 
 
     def get_pnl(self):
-        return self.pnl + self.net_position * float(self.trade_price) * float(self.order_size)
+        return self.pnl + self.real_position * float(self.trade_price)
