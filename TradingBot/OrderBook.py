@@ -39,8 +39,8 @@ class OrderBookConsole(OrderBook):
         self.sell_initial_offset = config.sell_initial_offset
         self.buy_additional_offset = config.buy_additional_offset
         self.sell_additional_offset = config.sell_additional_offset
-        self.buy_profit_target_multiplier = 2
-        self.sell_profit_target_multiplier = 2
+        self.buy_profit_target_multiplier = 1
+        self.sell_profit_target_multiplier = 1
         self.bid_theo = 0
         self.ask_theo = 0
         self.num_order_rejects = 0
@@ -224,7 +224,7 @@ class OrderBookConsole(OrderBook):
             # We are long
             if self.auth_client.net_position > 2:
                 self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
-                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) - (self.buy_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) - self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.auth_client.net_position)
+                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) - (self.buy_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) + self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.auth_client.net_position)
             else:
                 self.bid_theo = self.sma - self.buy_initial_offset * abs(self.auth_client.net_position + 1) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
                 self.ask_theo = self.sma
@@ -233,7 +233,7 @@ class OrderBookConsole(OrderBook):
             # We are short
             if self.auth_client.net_position < -2:
                 self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
-                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) + (self.sell_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) + (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.auth_client.net_position))
+                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) + (self.sell_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) - (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.auth_client.net_position))
             else:
                 self.ask_theo = self.sma + self.sell_initial_offset * abs(self.auth_client.net_position - 1) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
                 self.bid_theo = self.sma
