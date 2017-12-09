@@ -206,10 +206,10 @@ class OrderBookConsole(OrderBook):
             # logger.debug(self.auth_client.my_buy_orders)
             # logger.debug("My Sell Orders:")
             # logger.debug(self.auth_client.my_sell_orders)
-            if (self.num_order_rejects < 2):
+            if (self.num_order_rejects < 1):
                 self.check_if_action_needed()
             else:
-                logger.debug("We have more than 2 rejects. Waiting a second...")
+                logger.debug("We have more than 1 rejects. Waiting a second...")
 
     def update_theos(self):
         # Update Theos
