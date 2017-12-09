@@ -22,7 +22,14 @@ class MyFillOrderBook(AuthenticatedClient):
         self.my_sell_orders = []
         self.my_buy_order_acks = []
         self.my_sell_order_acks = []
-        self.my_PnL = None
+        self.pnl = 0
+        self.net_position = 0
+        self.real_position = 0
+        self.buy_levels = 0
+        self.sell_levels = 0
+        self.sent_buy_cancel = False
+        self.sent_sell_cancel = False
+        self.order_size = config.order_size
 
     def place_my_limit_order(self, side, price, size='0.01'):
         """ I place the limit order here """
@@ -64,99 +71,99 @@ class MyFillOrderBook(AuthenticatedClient):
             message['size'] = float(message['size'])
         return message
 
-    # def add_my_order(self, order):
-    #     """ Add Order to book """
-    #     logging.warning("Adding Order to book")
-    #     logging.warning(order)
-    #     if order['side'] == 'buy':
-    #         myOrder = {order['order_id']: order}
-    #         self.my_buy_orders.append(myOrder)
-    #     if order['side'] == 'sell':
-    #         myOrder = {order['order_id']: order}
-    #         self.my_sell_orders.append(myOrder)
-    #
-    #     logging.info("Number of Open Buy Orders: " + str(len(self.my_buy_orders)))
-    #     logging.info("Number of Open Sell Orders: " + str(len(self.my_sell_orders)))
-    #     print("Number of Open Buy Orders: " + str(len(self.my_buy_orders)))
-    #     print("Number of Open Sell Orders: " + str(len(self.my_sell_orders)))
-
     def add_my_order_ack(self, message):
         """ Add Order Ack to Order Ack Book """
 
         if message['side'] == 'buy':
-            self.auth_client.my_buy_order_acks.append(clean_message(message))
+            self.my_buy_order_acks.append(self.clean_message(message))
         elif message['side'] == 'sell':
-            self.auth_client.my_sell_order_acks.append(clean_message(message))
+            self.my_sell_order_acks.append(self.clean_message(message))
         else:
             logger.critical("Message has a side other than buy or sell in add_my_order_ack.")
+            logger.critical(message)
 
     def process_cancel_message(self, message):
         """ Process the cancel message and remove orders from book if necessary. """
 
-        if message['side'] == 'buy' and len(self.auth_client.my_buy_orders) > 0:
-            if message['order_id'] == self.auth_client.my_buy_orders[0]['id']:
-                self.auth_client.my_buy_orders.clear()
-                self.sent_buy_cancel = False
-                logger.critical("Setting Sent Buy Cancel to False")
-                logger.warning(self.auth_client.my_buy_orders)
+        if message['side'] == 'buy':
+            if len(self.my_buy_orders) > 0:
+                if message['order_id'] == self.my_buy_orders[0]['id']:
+                    self.my_buy_orders.clear()
+                    self.sent_buy_cancel = False
+                    logger.critical("Setting Sent Buy Cancel to False")
+                    logger.warning(self.my_buy_orders)
+                else:
+                    logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_buy_orders: " + self.my_buy_orders[0]['id'])
             else:
-                logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_buy_orders: " + self.auth_client.my_buy_orders[0]['id'])
-        elif message['side'] == 'sell' and len(self.auth_client.my_sell_orders) > 0:
-            if message['order_id'] == self.auth_client.my_sell_orders[0]['id']:
-                self.auth_client.my_sell_orders.clear()
-                self.sent_sell_cancel = False
-                logger.critical("Setting Sent Sell Cancel to False")
-                logger.warning(self.auth_client.my_sell_orders)
+                logger.critical("Canceling a buy order that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
+        elif message['side'] == 'sell':
+            if len(self.my_sell_orders) > 0:
+                if message['order_id'] == self.my_sell_orders[0]['id']:
+                    self.my_sell_orders.clear()
+                    self.sent_sell_cancel = False
+                    logger.critical("Setting Sent Sell Cancel to False")
+                    logger.warning(self.my_sell_orders)
+                else:
+                    logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_sell_orders: " + self.my_sell_orders[0]['id'])
             else:
-                logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_sell_orders: " + self.auth_client.my_sell_orders[0]['id'])
+                logger.critical("Canceling a sell order that did not originally exist in the sell order book. This is only okay if it was a manual fill.")
         else:
-            logger.critical("We have a message with side other than Buy or Sell.")
+            logger.critical("We have a message with side other than Buy or Sell in process cancel message.")
+            logger.critical(message)
 
     def process_fill_message(self, message):
         """ Process the fill message and update positions and theos as necessary. """
 
-        if message['side'] == 'buy' and len(self.auth_client.my_buy_orders) > 0:
-            if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['id']:
-                fill_size = message['size']
-                logger.critical("Clearing Out Dictionary (BEFORE)...")
-                logger.critical(self.auth_client.my_buy_orders)
-                remaining_size = self.auth_client.my_buy_orders[0]['size'] - fill_size
-                if remaining_size > 0.001:
-                    self.pnl -= fill_size * message['price']
-                    self.buy_levels += fill_size
-                    self.real_position += fill_size
-                    self.net_position = round(self.real_position / self.order_size)
-                    self.auth_client.my_buy_orders[0]['size'] = remaining_size
-                else:
-                    self.pnl -= self.auth_client.my_buy_orders[0]['size'] * message['price']
-                    self.buy_levels += self.auth_client.my_buy_orders[0]['size']
-                    self.real_position += self.auth_client.my_buy_orders[0]['size']
-                    self.net_position = round(self.real_position / self.order_size)
-                    self.auth_client.my_buy_orders.clear()
-                    logger.critical("Clearing Out Dictionary (AFTER)...")
-                    logger.critical(self.auth_client.my_buy_orders)
-        elif message['side'] == 'sell' and len(self.auth_client.my_sell_orders) > 0:
-            if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['id']:
-                fill_size = message['size']
-                logger.critical("Clearing Out Dictionary (BEFORE)...")
-                logger.critical(self.auth_client.my_sell_orders)
-                remaining_size = self.auth_client.my_sell_orders[0]['size'] - fill_size
-                if remaining_size > 0.001:
-                    self.pnl += fill_size * message['price']
-                    self.sell_levels += fill_size
-                    self.real_position -= fill_size
-                    self.net_position = round(self.real_position / self.order_size)
-                    self.auth_client.my_sell_orders[0]['size'] = remaining_size
-                else:
-                    self.pnl += self.auth_client.my_sell_orders[0]['size'] * message['price']
-                    self.sell_levels += self.auth_client.my_sell_orders[0]['size']
-                    self.real_position -= self.auth_client.my_sell_orders[0]['size']
-                    self.net_position = round(self.real_position / self.order_size)
-                    self.auth_client.my_sell_orders.clear()
-                    logger.critical("Clearing Out Dictionary (AFTER)...")
-                    logger.critical(self.auth_client.my_sell_orders)
+        if message['side'] == 'buy':
+            if len(self.my_buy_orders) > 0:
+                if message['maker_order_id'] == self.my_buy_orders[0]['id']:
+                    fill_size = message['size']
+                    logger.critical("Clearing Out Dictionary (BEFORE)...")
+                    logger.critical(self.my_buy_orders)
+                    remaining_size = self.my_buy_orders[0]['size'] - fill_size
+                    if remaining_size > 0.001:
+                        self.pnl -= fill_size * message['price']
+                        self.buy_levels += fill_size
+                        self.real_position += fill_size
+                        self.net_position = round(self.real_position / self.order_size)
+                        self.my_buy_orders[0]['size'] = remaining_size
+                    else:
+                        self.pnl -= self.my_buy_orders[0]['size'] * message['price']
+                        self.buy_levels += self.my_buy_orders[0]['size']
+                        self.real_position += self.my_buy_orders[0]['size']
+                        self.net_position = round(self.real_position / self.order_size)
+                        self.my_buy_orders.clear()
+                        logger.critical("Clearing Out Dictionary (AFTER)...")
+                        logger.critical(self.my_buy_orders)
+            else:
+                logger.critical("We received a buy fill with an order_id that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
+        elif message['side'] == 'sell':
+            if len(self.my_sell_orders) > 0:
+                if message['maker_order_id'] == self.my_sell_orders[0]['id']:
+                    fill_size = message['size']
+                    logger.critical("Clearing Out Dictionary (BEFORE)...")
+                    logger.critical(self.my_sell_orders)
+                    remaining_size = self.my_sell_orders[0]['size'] - fill_size
+                    if remaining_size > 0.001:
+                        self.pnl += fill_size * message['price']
+                        self.sell_levels += fill_size
+                        self.real_position -= fill_size
+                        self.net_position = round(self.real_position / self.order_size)
+                        self.my_sell_orders[0]['size'] = remaining_size
+                    else:
+                        self.pnl += self.my_sell_orders[0]['size'] * message['price']
+                        self.sell_levels += self.my_sell_orders[0]['size']
+                        self.real_position -= self.my_sell_orders[0]['size']
+                        self.net_position = round(self.real_position / self.order_size)
+                        self.my_sell_orders.clear()
+                        logger.critical("Clearing Out Dictionary (AFTER)...")
+                        logger.critical(self.my_sell_orders)
+            else:
+                logger.critical("We received a buy fill with an order_id that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
         else:
-            logger.critical("Message Side is not either buy or sell.")
+            logger.critical("Message Side is not either buy or sell in process fill message.")
+            logger.critical(message)
+
 
 
     # def add_my_fill(self, fill):

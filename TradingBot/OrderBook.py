@@ -43,17 +43,10 @@ class OrderBookConsole(OrderBook):
         self.sell_profit_target_multiplier = 2
         self.bid_theo = 0
         self.ask_theo = 0
-        self.net_position = 0
-        self.real_position = 0
-        self.buy_levels = 0
-        self.sell_levels = 0
         self.num_order_rejects = 0
-        self.pnl = 0
         self.num_rejections = 0
         self.min_tick = round(0.01, 2)
         self.min_order_size = round(0.01, 2)
-        self.sent_buy_cancel = False
-        self.sent_sell_cancel = False
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'])
 
@@ -94,12 +87,15 @@ class OrderBookConsole(OrderBook):
             self.trade_price = message['price']
             self.trade_size = message['size']
             self.trade_side = message['side']
-            #logger.debug('Trade: {}: {:.3f} @ {:.2f}'.format(self.trade_side.title(), self.trade_size, self.trade_price))
+            logger.debug('Trade: {}: {:.3f} @ {:.2f}'.format(self.trade_side.title(), float(self.trade_size), float(self.trade_price)))
 
         # See if something private came in the message (authenticated data)
         if 'user_id' in message:
             # We received a private message. Please log it.
             logger.warning("***Private Message Received from Websocket***: user_id - " + message['user_id'] + " found in message.")
+            logger.debug(message)
+            logger.debug("Cleaning Message...")
+            message = self.auth_client.clean_message(message)
             logger.debug(message)
 
             if message['type'] == 'received':
@@ -210,42 +206,36 @@ class OrderBookConsole(OrderBook):
             # logger.debug(self.auth_client.my_buy_orders)
             # logger.debug("My Sell Orders:")
             # logger.debug(self.auth_client.my_sell_orders)
-            if (self.num_order_rejects < 3):
+            if (self.num_order_rejects < 2):
                 self.check_if_action_needed()
             else:
-                logger.critical("We have more than 2 rejects. Waiting a second...")
+                logger.debug("We have more than 2 rejects. Waiting a second...")
 
     def update_theos(self):
         # Update Theos
-
-        #self.net_position = self.buy_levels - self.sell_levels
         std_offset = max(self.short_std, self.long_std)
 
-        if self.net_position == 0:
+        if self.auth_client.net_position == 0:
             # We are flat
             self.bid_theo = self.sma - self.buy_initial_offset - std_offset
             self.ask_theo = self.sma + self.sell_initial_offset + std_offset
 
-        elif self.net_position > 0:
+        elif self.auth_client.net_position > 0:
             # We are long
-            if self.net_position > 2:
-                self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
-                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position)) - (self.buy_additional_offset * ((self.net_position) * (self.net_position))) - self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.net_position)
-                #self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1) * 0.75) - (self.buy_additional_offset * ((self.net_position + 1 - 2) * (self.net_position + 1 - 2)))
-
+            if self.auth_client.net_position > 2:
+                self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
+                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) - (self.buy_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) - self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.auth_client.net_position)
             else:
-                self.bid_theo = self.sma - self.buy_initial_offset * abs(self.net_position + 1) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
+                self.bid_theo = self.sma - self.buy_initial_offset * abs(self.auth_client.net_position + 1) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
                 self.ask_theo = self.sma
 
         else:
             # We are short
-            if self.net_position < -2:
-                self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
-                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position)) + (self.sell_additional_offset * ((self.net_position) * (self.net_position))) + (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.net_position))
-                #self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1) * 0.75) + (self.sell_additional_offset * ((self.net_position - 1 + 2) * (self.net_position - 1 + 2)))
-
+            if self.auth_client.net_position < -2:
+                self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
+                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) + (self.sell_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) + (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.auth_client.net_position))
             else:
-                self.ask_theo = self.sma + self.sell_initial_offset * abs(self.net_position - 1) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
+                self.ask_theo = self.sma + self.sell_initial_offset * abs(self.auth_client.net_position - 1) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
                 self.bid_theo = self.sma
 
     def check_if_action_needed(self):
@@ -265,11 +255,11 @@ class OrderBookConsole(OrderBook):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
                         logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
                         # Cancel Current Order
-                        if (not self.sent_buy_cancel):
+                        if (not self.auth_client.sent_buy_cancel):
                             logger.warning("Cancelling Order")
                             logger.warning(self.auth_client.my_buy_orders)
                             self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
-                            self.sent_buy_cancel = True
+                            self.auth_client.sent_buy_cancel = True
                             logger.critical("Setting Sent Buy Cancel to True")
                         else:
                             logger.debug("Already sent buy cancel.")
@@ -292,8 +282,8 @@ class OrderBookConsole(OrderBook):
                     order_price += self.min_tick
 
                 place_size = self.order_size
-                if self.real_position < 2 * self.order_size and self.real_position > self.min_order_size:
-                    place_size = self.real_position
+                if self.auth_client.real_position < 2 * self.order_size and self.auth_client.real_position > self.min_order_size:
+                    place_size = self.auth_client.real_position
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
                 logger.info("Bid is lower than Bid Theo, we are placing a Buy Order at:" + str(self._bid + self.min_tick) + "\t"
@@ -326,11 +316,11 @@ class OrderBookConsole(OrderBook):
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
                         logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
                         # Cancel Current Order
-                        if (not self.sent_sell_cancel):
+                        if (not self.auth_client.sent_sell_cancel):
                             logger.warning("Cancelling Order")
                             logger.warning(self.auth_client.my_sell_orders)
                             self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
-                            self.sent_sell_cancel = True
+                            self.auth_client.sent_sell_cancel = True
                             logger.critical("Setting Sent Sell Cancel to True")
                         else:
                             logger.debug("Already sent sell cancel.")
@@ -352,10 +342,10 @@ class OrderBookConsole(OrderBook):
                     order_price -= self.min_tick
 
                 place_size = self.order_size
-                if self.real_position < 2 * self.order_size and self.real_position > self.min_order_size:
-                    place_size = self.real_position
+                if self.auth_client.real_position < 2 * self.order_size and self.auth_client.real_position > self.min_order_size:
+                    place_size = self.auth_client.real_position
 
-                order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = self.order_size)
+                order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = place_size)
                 logger.info("Ask is Higher than Ask Theo, we are placing a Sell order at:" + str(self._ask - self.min_tick) + "\t"
                               + "Ask: " + str(self._ask) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
                 if order_successful:
@@ -371,6 +361,5 @@ class OrderBookConsole(OrderBook):
                     logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
                     self.num_order_rejects = self.num_order_rejects + 1
 
-
     def get_pnl(self):
-        return self.pnl + self.real_position * float(self.trade_price)
+        return self.auth_client.pnl + self.auth_client.real_position * float(self.trade_price)
