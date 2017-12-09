@@ -58,58 +58,136 @@ class MyFillOrderBook(AuthenticatedClient):
             return (False)
 
     def clean_message(self, message):
-        message['price'] = float(message['price'])
-        message['size'] = float(message['size'])
+        if 'price' in message:
+            message['price'] = float(message['price'])
+        if 'size' in message:
+            message['size'] = float(message['size'])
         return message
 
-    def add_my_order(self, order):
-        """ Add Order to book """
-        logging.warning("Adding Order to book")
-        logging.warning(order)
-        if order['side'] == 'buy':
-            myOrder = {order['order_id']: order}
-            self.my_buy_orders.append(myOrder)
-        if order['side'] == 'sell':
-            myOrder = {order['order_id']: order}
-            self.my_sell_orders.append(myOrder)
+    # def add_my_order(self, order):
+    #     """ Add Order to book """
+    #     logging.warning("Adding Order to book")
+    #     logging.warning(order)
+    #     if order['side'] == 'buy':
+    #         myOrder = {order['order_id']: order}
+    #         self.my_buy_orders.append(myOrder)
+    #     if order['side'] == 'sell':
+    #         myOrder = {order['order_id']: order}
+    #         self.my_sell_orders.append(myOrder)
+    #
+    #     logging.info("Number of Open Buy Orders: " + str(len(self.my_buy_orders)))
+    #     logging.info("Number of Open Sell Orders: " + str(len(self.my_sell_orders)))
+    #     print("Number of Open Buy Orders: " + str(len(self.my_buy_orders)))
+    #     print("Number of Open Sell Orders: " + str(len(self.my_sell_orders)))
 
-        logging.info("Number of Open Buy Orders: " + str(len(self.my_buy_orders)))
-        logging.info("Number of Open Sell Orders: " + str(len(self.my_sell_orders)))
-        print("Number of Open Buy Orders: " + str(len(self.my_buy_orders)))
-        print("Number of Open Sell Orders: " + str(len(self.my_sell_orders)))
+    def add_my_order_ack(self, message):
+        """ Add Order Ack to Order Ack Book """
 
-    def remove_my_order(self, order):
-        """ Remove Order from book """
+        if message['side'] == 'buy':
+            self.auth_client.my_buy_order_acks.append(clean_message(message))
+        elif message['side'] == 'sell':
+            self.auth_client.my_sell_order_acks.append(clean_message(message))
+        else:
+            logger.critical("Message has a side other than buy or sell in add_my_order_ack.")
 
-    def add_my_fill(self, fill):
-        """ Add Fill to book """
-        logging.warning("Adding Fill to book")
-        logging.warning(fill)
+    def process_cancel_message(self, message):
+        """ Process the cancel message and remove orders from book if necessary. """
 
-        if fill['side'] == 'buy':
-            # Add to Fills list
-            self.my_buy_fills.append(fill)
-            # Remove from Orders list
-            for order in self.my_buy_orders:
-                if fill['maker_order_id'] in order.keys():
-                    self.my_buy_orders.remove(order)
-                    logging.warning("Removing " + str(fill['maker_order_id']) + " from Buy Order Book.")
-                    logging.warning(self.my_buy_orders)
+        if message['side'] == 'buy' and len(self.auth_client.my_buy_orders) > 0:
+            if message['order_id'] == self.auth_client.my_buy_orders[0]['id']:
+                self.auth_client.my_buy_orders.clear()
+                self.sent_buy_cancel = False
+                logger.critical("Setting Sent Buy Cancel to False")
+                logger.warning(self.auth_client.my_buy_orders)
+            else:
+                logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_buy_orders: " + self.auth_client.my_buy_orders[0]['id'])
+        elif message['side'] == 'sell' and len(self.auth_client.my_sell_orders) > 0:
+            if message['order_id'] == self.auth_client.my_sell_orders[0]['id']:
+                self.auth_client.my_sell_orders.clear()
+                self.sent_sell_cancel = False
+                logger.critical("Setting Sent Sell Cancel to False")
+                logger.warning(self.auth_client.my_sell_orders)
+            else:
+                logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_sell_orders: " + self.auth_client.my_sell_orders[0]['id'])
+        else:
+            logger.critical("We have a message with side other than Buy or Sell.")
 
-        if fill['side'] == 'sell':
-            # Add to Fills list
-            self.my_sell_fills.append(fill)
-            # Remove from Orders list
-            for order in self.my_sell_orders:
-                if fill['maker_order_id'] in order.keys():
-                    self.my_sell_orders.remove(order)
-                    logging.warning("Removing " + str(fill['maker_order_id']) + " from Sell Order Book.")
-                    logging.warning(self.my_sell_orders)
+    def process_fill_message(self, message):
+        """ Process the fill message and update positions and theos as necessary. """
+
+        if message['side'] == 'buy' and len(self.auth_client.my_buy_orders) > 0:
+            if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['id']:
+                fill_size = message['size']
+                logger.critical("Clearing Out Dictionary (BEFORE)...")
+                logger.critical(self.auth_client.my_buy_orders)
+                remaining_size = self.auth_client.my_buy_orders[0]['size'] - fill_size
+                if remaining_size > 0.001:
+                    self.pnl -= fill_size * message['price']
+                    self.buy_levels += fill_size
+                    self.real_position += fill_size
+                    self.net_position = round(self.real_position / self.order_size)
+                    self.auth_client.my_buy_orders[0]['size'] = remaining_size
+                else:
+                    self.pnl -= self.auth_client.my_buy_orders[0]['size'] * message['price']
+                    self.buy_levels += self.auth_client.my_buy_orders[0]['size']
+                    self.real_position += self.auth_client.my_buy_orders[0]['size']
+                    self.net_position = round(self.real_position / self.order_size)
+                    self.auth_client.my_buy_orders.clear()
+                    logger.critical("Clearing Out Dictionary (AFTER)...")
+                    logger.critical(self.auth_client.my_buy_orders)
+        elif message['side'] == 'sell' and len(self.auth_client.my_sell_orders) > 0:
+            if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['id']:
+                fill_size = message['size']
+                logger.critical("Clearing Out Dictionary (BEFORE)...")
+                logger.critical(self.auth_client.my_sell_orders)
+                remaining_size = self.auth_client.my_sell_orders[0]['size'] - fill_size
+                if remaining_size > 0.001:
+                    self.pnl += fill_size * message['price']
+                    self.sell_levels += fill_size
+                    self.real_position -= fill_size
+                    self.net_position = round(self.real_position / self.order_size)
+                    self.auth_client.my_sell_orders[0]['size'] = remaining_size
+                else:
+                    self.pnl += self.auth_client.my_sell_orders[0]['size'] * message['price']
+                    self.sell_levels += self.auth_client.my_sell_orders[0]['size']
+                    self.real_position -= self.auth_client.my_sell_orders[0]['size']
+                    self.net_position = round(self.real_position / self.order_size)
+                    self.auth_client.my_sell_orders.clear()
+                    logger.critical("Clearing Out Dictionary (AFTER)...")
+                    logger.critical(self.auth_client.my_sell_orders)
+        else:
+            logger.critical("Message Side is not either buy or sell.")
 
 
-        logging.info("Number of Open Buy Fills: " + str(len(self.my_buy_fills)))
-        logging.info("Number of Open Sell Fills: " + str(len(self.my_sell_fills)))
-        print("Number of Open Buy Fills: " + str(len(self.my_buy_fills)))
-        print("Number of Open Sell Fills: " + str(len(self.my_sell_fills)))
-
-        # Now that we have a fill. Lets place a profit order
+    # def add_my_fill(self, fill):
+    #     """ Add Fill to book """
+    #     logging.warning("Adding Fill to book")
+    #     logging.warning(fill)
+    #
+    #     if fill['side'] == 'buy':
+    #         # Add to Fills list
+    #         self.my_buy_fills.append(fill)
+    #         # Remove from Orders list
+    #         for order in self.my_buy_orders:
+    #             if fill['maker_order_id'] in order.keys():
+    #                 self.my_buy_orders.remove(order)
+    #                 logging.warning("Removing " + str(fill['maker_order_id']) + " from Buy Order Book.")
+    #                 logging.warning(self.my_buy_orders)
+    #
+    #     if fill['side'] == 'sell':
+    #         # Add to Fills list
+    #         self.my_sell_fills.append(fill)
+    #         # Remove from Orders list
+    #         for order in self.my_sell_orders:
+    #             if fill['maker_order_id'] in order.keys():
+    #                 self.my_sell_orders.remove(order)
+    #                 logging.warning("Removing " + str(fill['maker_order_id']) + " from Sell Order Book.")
+    #                 logging.warning(self.my_sell_orders)
+    #
+    #
+    #     logging.info("Number of Open Buy Fills: " + str(len(self.my_buy_fills)))
+    #     logging.info("Number of Open Sell Fills: " + str(len(self.my_sell_fills)))
+    #     print("Number of Open Buy Fills: " + str(len(self.my_buy_fills)))
+    #     print("Number of Open Sell Fills: " + str(len(self.my_sell_fills)))
+    #
+    #     # Now that we have a fill. Lets place a profit order

@@ -39,8 +39,8 @@ class OrderBookConsole(OrderBook):
         self.sell_initial_offset = config.sell_initial_offset
         self.buy_additional_offset = config.buy_additional_offset
         self.sell_additional_offset = config.sell_additional_offset
-        self.buy_profit_target_multiplier = 1
-        self.sell_profit_target_multiplier = 1
+        self.buy_profit_target_multiplier = 2
+        self.sell_profit_target_multiplier = 2
         self.bid_theo = 0
         self.ask_theo = 0
         self.net_position = 0
@@ -101,98 +101,115 @@ class OrderBookConsole(OrderBook):
             # We received a private message. Please log it.
             logger.warning("***Private Message Received from Websocket***: user_id - " + message['user_id'] + " found in message.")
             logger.debug(message)
-            if 'price' in message and 'size' in message:
-                message = self.auth_client.clean_message(message)
 
             if message['type'] == 'received':
-                # Order Place was Acknowledged.
+                # A valid order has been received and is now active. This message is emitted for every single valid order as soon as the matching engine receives it whether it fills immediately or not.
+                # The received message does not indicate a resting order on the order book. It simply indicates a new incoming order which as been accepted by the matching engine for processing.
+                # Received orders may cause match message to follow if they are able to begin being filled (taker behavior).
+                # Self-trade prevention may also trigger change messages to follow if the order size needs to be adjusted.
+                # Orders which are not fully filled or canceled due to self-trade prevention result in an open message and become resting orders on the order book.
+                # Market orders (indicated by the order_type field) may have an optional funds field which indicates how much quote currency will be used to buy or sell.
+                # For example, a funds field of 100.00 for the BTC-USD product would indicate a purchase of up to 100.00 USD worth of bitcoin.
+
+                # {
+                #     "type": "received",
+                #     "time": "2014-11-07T08:19:27.028459Z",
+                #     "product_id": "BTC-USD",
+                #     "sequence": 10,
+                #     "order_id": "d50ec984-77a8-460a-b958-66f114b0de9b",
+                #     "size": "1.34",
+                #     "price": "502.1",
+                #     "side": "buy",
+                #     "order_type": "limit"
+                # }
+
                 if message['order_type'] == 'limit':
                     logger.warning("***Limit Order Place was Acknowledged***")
                     # Send the order to the orderbook
-                    if message['side'] == 'buy':
-                        self.auth_client.my_buy_order_acks.append(message)
-                    else:
-                        self.auth_client.my_sell_order_acks.append(message)
+                    self.auth_client.add_my_order_ack(message)
                 else:
                     logger.critical("We had a message type 'received' with an order_type other than limit: " + message['order_type'])
+                    logger.critical(message)
+
+            elif message['type'] == 'open':
+                # The order is now open on the order book. This message will only be sent for orders which are not fully filled immediately.
+                # remaining_size will indicate how much of the order is unfilled and going on the book.
+
+                # {
+                #     "type": "open",
+                #     "time": "2014-11-07T08:19:27.028459Z",
+                #     "product_id": "BTC-USD",
+                #     "sequence": 10,
+                #     "order_id": "d50ec984-77a8-460a-b958-66f114b0de9b",
+                #     "price": "200.2",
+                #     "remaining_size": "1.00",
+                #     "side": "sell"
+                # }
+
+                logger.warning("***Limit Order " + message['order_id'] + " is now open on the order book. ")
+                logger.warning("Remaining Size: " + message['remaining_size'])
 
             elif message['type'] == 'done':
+                # The order is no longer on the order book.
+                # Sent for all orders for which there was a received message.
+                # This message can result from an order being canceled or filled.
+                # There will be no more messages for this order_id after a done message.
+                # remaining_size indicates how much of the order went unfilled; this will be 0 for filled orders.
+                # market orders will not have a remaining_size or price field as they are never on the open order book at a given price.
+
+                # {
+                #     "type": "done",
+                #     "time": "2014-11-07T08:19:27.028459Z",
+                #     "product_id": "BTC-USD",
+                #     "sequence": 10,
+                #     "price": "200.2",
+                #     "order_id": "d50ec984-77a8-460a-b958-66f114b0de9b",
+                #     "reason": "filled", // or "canceled"
+                #     "side": "sell",
+                #     "remaining_size": "0"
+                # }
+
                 if message['reason'] == 'canceled':
-                    # Order canceled ack
-                    # Remove the Order from the Order Dictionary
-                    if message['side'] == 'buy' and len(self.auth_client.my_buy_orders) > 0:
-                        if message['order_id'] == self.auth_client.my_buy_orders[0]['id']:
-                            self.auth_client.my_buy_orders.clear()
-                            self.sent_buy_cancel = False
-                            logger.warning(self.auth_client.my_buy_orders)
-                    elif message['side'] == 'sell' and len(self.auth_client.my_sell_orders) > 0:
-                        if message['order_id'] == self.auth_client.my_sell_orders[0]['id']:
-                            self.auth_client.my_sell_orders.clear()
-                            self.sent_sell_cancel = False
-                            logger.warning(self.auth_client.my_sell_orders)
-                    else:
-                        logger.critical("We have a message with side other than Buy or Sell.")
+                    # Order canceled  received
+                    logger.critical("Cancel Message Received.")
+                    self.auth_client.process_cancel_message(message)
+
+                elif message['reason'] == 'filled':
+                    # Fill Message done
+                    # Match message comes in first so we will ignore this until we do detailed order and fill reconciliation.
+                    logger.debug("Message Type == 'done' with a reason of 'filled'")
+                    logger.debug(message)
+                else:
+                    logger.critical("Message Type == 'done' with a new message reason.")
 
             elif message['type'] == 'match':
                 # We recieved a fill message
                 logger.warning("***Received a Fill Message***")
                 logger.warning(message)
 
-                # Update Net Position
-                if message['side'] == 'buy' and len(self.auth_client.my_buy_orders) > 0:
-                    if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['id']:
-                        fill_size = message['size']
-                        logger.critical("Clearing Out Dictionary (BEFORE)...")
-                        logger.critical(self.auth_client.my_buy_orders)
-                        remaining_size = self.auth_client.my_buy_orders[0]['size'] - fill_size
-                        if remaining_size > 0.001:
-                            self.pnl -= fill_size * message['price']
-                            self.buy_levels += fill_size
-                            self.real_position += fill_size
-                            self.net_position = round(self.real_position / self.order_size)
-                            self.auth_client.my_buy_orders[0]['size'] = remaining_size
-                        else:
-                            self.pnl -= self.auth_client.my_buy_orders[0]['size'] * message['price']
-                            self.buy_levels += self.auth_client.my_buy_orders[0]['size']
-                            self.real_position += self.auth_client.my_buy_orders[0]['size']
-                            self.net_position = round(self.real_position / self.order_size)
-                            self.auth_client.my_buy_orders.clear()
-                            logger.critical("Clearing Out Dictionary (AFTER)...")
-                            logger.critical(self.auth_client.my_buy_orders)
-                elif message['side'] == 'sell' and len(self.auth_client.my_sell_orders) > 0:
-                    if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['id']:
-                        fill_size = message['size']
-                        logger.critical("Clearing Out Dictionary (BEFORE)...")
-                        logger.critical(self.auth_client.my_sell_orders)
-                        remaining_size = self.auth_client.my_sell_orders[0]['size'] - fill_size
-                        if remaining_size > 0.001:
-                            self.pnl += fill_size * message['price']
-                            self.sell_levels += fill_size
-                            self.real_position -= fill_size
-                            self.net_position = round(self.real_position / self.order_size)
-                            self.auth_client.my_sell_orders[0]['size'] = remaining_size
-                        else:
-                            self.pnl += self.auth_client.my_sell_orders[0]['size'] * message['price']
-                            self.sell_levels += self.auth_client.my_sell_orders[0]['size']
-                            self.real_position -= self.auth_client.my_sell_orders[0]['size']
-                            self.net_position = round(self.real_position / self.order_size)
-                            self.auth_client.my_sell_orders.clear()
-                            logger.critical("Clearing Out Dictionary (AFTER)...")
-                            logger.critical(self.auth_client.my_sell_orders)
-
-                else:
-                    logger.critical("MASSIVE FAIL - Message Side is not either buy or sell.")
+                self.auth_client.process_fill_message(message)
 
                 if config.fill_notifications:
                     logger.warning("Sending Slack Notification:")
                     slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), float(message['size']), float(message['price']), str(datetime.now())))
 
+            elif message['type'] == 'change':
+                # we received a change messages
+                logger.critical("Received a Change Message... We currently aren't doing anything with these, but logging them.")
+                logger.critical(message)
+            else:
+                logger.critical("Received a Message Type that we have not yet coded for. Mesage Type: " + message['type'])
+                logger.critical(message)
 
     def on_bidask_update(self):
         # Since the bid/ask changed. Let's see if we need to place a trade.
 
         if self.valid_sma:
             self.update_theos()
+            # logger.debug("My Buy Orders:")
+            # logger.debug(self.auth_client.my_buy_orders)
+            # logger.debug("My Sell Orders:")
+            # logger.debug(self.auth_client.my_sell_orders)
             if (self.num_order_rejects < 3):
                 self.check_if_action_needed()
             else:
@@ -213,7 +230,7 @@ class OrderBookConsole(OrderBook):
             # We are long
             if self.net_position > 2:
                 self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1)) - (self.buy_additional_offset * ((self.net_position + 1) * (self.net_position + 1))) - std_offset
-                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position)) - (self.buy_additional_offset * ((self.net_position) * (self.net_position))) + self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.net_position)
+                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position)) - (self.buy_additional_offset * ((self.net_position) * (self.net_position))) - self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.net_position)
                 #self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.net_position + 1) * 0.75) - (self.buy_additional_offset * ((self.net_position + 1 - 2) * (self.net_position + 1 - 2)))
 
             else:
@@ -224,7 +241,7 @@ class OrderBookConsole(OrderBook):
             # We are short
             if self.net_position < -2:
                 self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1)) + (self.sell_additional_offset * ((self.net_position - 1) * (self.net_position - 1))) + std_offset
-                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position)) + (self.sell_additional_offset * ((self.net_position) * (self.net_position))) - (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.net_position))
+                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position)) + (self.sell_additional_offset * ((self.net_position) * (self.net_position))) + (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.net_position))
                 #self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.net_position - 1) * 0.75) + (self.sell_additional_offset * ((self.net_position - 1 + 2) * (self.net_position - 1 + 2)))
 
             else:
@@ -241,16 +258,19 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_buy_orders) == 1):
                 my_order_price = self.auth_client.my_buy_orders[0]['price']
 
-                if (self._bid < (self.bid_theo + (self.min_tick*100))):
+                if (self._bid < (self.bid_theo + (self.min_tick*10))):
                     # Keep Order
-                    if (self._bid > (my_order_price + (self.min_tick*100))):
+                    logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
+                    if (self._bid > (my_order_price + (self.min_tick*10))):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
+                        logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
                         # Cancel Current Order
                         if (not self.sent_buy_cancel):
                             logger.warning("Cancelling Order")
                             logger.warning(self.auth_client.my_buy_orders)
                             self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
                             self.sent_buy_cancel = True
+                            logger.critical("Setting Sent Buy Cancel to True")
                         else:
                             logger.debug("Already sent buy cancel.")
                     else:
@@ -259,6 +279,7 @@ class OrderBookConsole(OrderBook):
                 else:
                     # Remove Order? No need to.. lets just leave it out there...
                     logger.debug("No need to remove order because the bid is now more than 100 ticks from the Bid Theo.")
+
             else:
                 logger.critical("We have more than just one order in the order book. Something is wrong...")
 
@@ -298,16 +319,19 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_sell_orders) == 1):
                 my_order_price = self.auth_client.my_sell_orders[0]['price']
 
-                if (self._ask > (self.ask_theo - (self.min_tick * 100))):
+                if (self._ask > (self.ask_theo - (self.min_tick * 10))):
                     # Keep Order
-                    if (self._ask < (my_order_price - (self.min_tick * 100))):
+                    logger.debug("Ask: " + str(self._ask) + " should be greater than " + str(self.ask_theo - (self.min_tick*10)))
+                    if (self._ask < (my_order_price - (self.min_tick * 10))):
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
+                        logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
                         # Cancel Current Order
                         if (not self.sent_sell_cancel):
                             logger.warning("Cancelling Order")
                             logger.warning(self.auth_client.my_sell_orders)
                             self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
                             self.sent_sell_cancel = True
+                            logger.critical("Setting Sent Sell Cancel to True")
                         else:
                             logger.debug("Already sent sell cancel.")
                     else:
