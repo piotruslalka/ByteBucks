@@ -29,6 +29,8 @@ class MyFillOrderBook(AuthenticatedClient):
         self.sell_levels = 0
         self.sent_buy_cancel = False
         self.sent_sell_cancel = False
+        self.num_buy_cancel_rejects = 0
+        self.num_sell_cancel_rejects = 0
         self.order_size = config.order_size
 
     def place_my_limit_order(self, side, price, size='0.01'):
@@ -90,6 +92,7 @@ class MyFillOrderBook(AuthenticatedClient):
                 if message['order_id'] == self.my_buy_orders[0]['id']:
                     self.my_buy_orders.clear()
                     self.sent_buy_cancel = False
+                    self.num_buy_cancel_rejects = 0
                     logger.critical("Setting Sent Buy Cancel to False")
                     logger.warning(self.my_buy_orders)
                 else:
@@ -101,6 +104,7 @@ class MyFillOrderBook(AuthenticatedClient):
                 if message['order_id'] == self.my_sell_orders[0]['id']:
                     self.my_sell_orders.clear()
                     self.sent_sell_cancel = False
+                    self.num_sell_cancel_rejects = 0
                     logger.critical("Setting Sent Sell Cancel to False")
                     logger.warning(self.my_sell_orders)
                 else:

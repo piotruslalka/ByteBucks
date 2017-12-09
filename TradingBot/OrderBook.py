@@ -263,6 +263,14 @@ class OrderBookConsole(OrderBook):
                             logger.critical("Setting Sent Buy Cancel to True")
                         else:
                             logger.debug("Already sent buy cancel.")
+                            self.auth_client.num_buy_cancel_rejects += 1
+                            if self.auth_client.num_buy_cancel_rejects > 100:
+                                # The exchange must not have received the cancel request. Sending New Cancel request
+                                # HTTP/1.1 400 32 <-- Error code
+                                logger.critical("Retrying to Cancel Order:")
+                                logger.critical(self.auth_client.my_buy_orders)
+                                self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                                logger.critical("Sent Buy Cancel should already be set to True...")
                     else:
                         # Keep Order
                         logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
@@ -324,6 +332,14 @@ class OrderBookConsole(OrderBook):
                             logger.critical("Setting Sent Sell Cancel to True")
                         else:
                             logger.debug("Already sent sell cancel.")
+                            self.auth_client.num_sell_cancel_rejects += 1
+                            if self.auth_client.num_sell_cancel_rejects > 100:
+                                # The exchange must not have received the cancel request. Sending New Cancel request
+                                # HTTP/1.1 400 32 <-- Error code
+                                logger.critical("Retrying to Cancel Order:")
+                                logger.critical(self.auth_client.my_sell_orders)
+                                self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                                logger.critical("Sent Sell Cancel should already be set to True...")
                     else:
                         # Keep Order
                         logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
