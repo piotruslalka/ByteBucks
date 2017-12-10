@@ -281,8 +281,21 @@ class OrderBookConsole(OrderBook):
                                 logger.critical("This really should not be happening.")
                                 logger.critical("Retrying to Cancel Order:")
                                 logger.critical(self.auth_client.my_buy_orders)
-                                self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                                exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                                logger.critical("Exchange Message Inner:")
+                                logger.critical(exchange_message)
+                                if 'message' in exchange_message:
+                                    if exchange_message['message'] == "order not found":
+                                        logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                    else:
+                                        logger.critical("Message is different than expected.")
+                                else:
+                                    logger.critical("Exchange Message is our order_ID. Cancel successful.")
+                                    self.auth_client.sent_buy_cancel = True
+                                    logger.critical("Setting Sent Buy Cancel to True")
                                 logger.critical("Sent Buy Cancel should already be set to True...")
+                                logger.critical("Resetting cancel rejects.")
+                                self.auth_client.num_buy_cancel_rejects = 0
                     else:
                         # Keep Order
                         logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
@@ -361,8 +374,21 @@ class OrderBookConsole(OrderBook):
                                 logger.critical("This really should not be happening.")
                                 logger.critical("Retrying to Cancel Order:")
                                 logger.critical(self.auth_client.my_sell_orders)
-                                self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                                exchange_message = self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                                logger.critical("Exchange Message Inner:")
+                                logger.critical(exchange_message)
+                                if 'message' in exchange_message:
+                                    if exchange_message['message'] == "order not found":
+                                        logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                    else:
+                                        logger.critical("Message is different than expected.")
+                                else:
+                                    logger.critical("Exchange Message is our order_ID. Cancel successful.")
+                                    self.auth_client.sent_sell_cancel = True
+                                    logger.critical("Setting Sent Sell Cancel to True")
                                 logger.critical("Sent Sell Cancel should already be set to True...")
+                                logger.critical("Resetting cancel rejects.")
+                                self.auth_client.num_sell_cancel_rejects = 0
                     else:
                         # Keep Order
                         logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
