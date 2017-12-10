@@ -172,12 +172,10 @@ class OrderBookConsole(OrderBook):
 
                 elif message['reason'] == 'filled':
                     # Fill Message done
-                    # Match message comes in first, but it's worth sending the slack Notification now so fill processing is not delayed.
+                    # Match message comes in first.
                     logger.debug("Message Type == 'done' with a reason of 'filled'")
                     logger.debug(message)
-                    if config.fill_notifications:
-                        logger.warning("Sending Slack Notification:")
-                        slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), float(message['size']), float(message['price']), str(datetime.now())))
+
 
                 else:
                     logger.critical("Message Type == 'done' with a new message reason.")
@@ -188,6 +186,10 @@ class OrderBookConsole(OrderBook):
                 logger.warning(message)
 
                 self.auth_client.process_fill_message(message)
+
+                if config.fill_notifications:
+                    logger.warning("Sending Slack Notification:")
+                    slack.send_message_to_slack("{} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.auth_client.pnl))
 
             elif message['type'] == 'change':
                 # we received a change messages

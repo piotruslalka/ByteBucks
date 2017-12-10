@@ -59,8 +59,9 @@ message = {'side':'buy',
            'price':'32533',
            'product_id':'btc/usd'}
 
-currTime = str(datetime.now())
+currTime = str(datetime.now().time())
 
-slack.send_message_to_slack("Filled - {} {:.2f} @ {}\t{}".format(message['side'].title(), Decimal(message['size']), message['price'], currTime))
+#print(currTime)
+net_position = 4.00000000002
+slack.send_message_to_slack("Filled - {} {:.2f} @ {}\t{} NP: {:.0f}".format(message['side'].title(), Decimal(message['size']), message['price'], currTime, net_position))
                             
-                            #:.3f
