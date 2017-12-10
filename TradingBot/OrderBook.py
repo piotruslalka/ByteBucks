@@ -172,9 +172,13 @@ class OrderBookConsole(OrderBook):
 
                 elif message['reason'] == 'filled':
                     # Fill Message done
-                    # Match message comes in first so we will ignore this until we do detailed order and fill reconciliation.
+                    # Match message comes in first, but it's worth sending the slack Notification now so fill processing is not delayed.
                     logger.debug("Message Type == 'done' with a reason of 'filled'")
                     logger.debug(message)
+                    if config.fill_notifications:
+                        logger.warning("Sending Slack Notification:")
+                        slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), float(message['size']), float(message['price']), str(datetime.now())))
+
                 else:
                     logger.critical("Message Type == 'done' with a new message reason.")
 
@@ -184,10 +188,6 @@ class OrderBookConsole(OrderBook):
                 logger.warning(message)
 
                 self.auth_client.process_fill_message(message)
-
-                if config.fill_notifications:
-                    logger.warning("Sending Slack Notification:")
-                    slack.send_message_to_slack("Filled - {} {:.3f} @ {:.2f} {}".format(message['side'].title(), float(message['size']), float(message['price']), str(datetime.now())))
 
             elif message['type'] == 'change':
                 # we received a change messages
@@ -248,25 +248,35 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_buy_orders) == 1):
                 my_order_price = self.auth_client.my_buy_orders[0]['price']
 
-                if (self._bid < (self.bid_theo + (self.min_tick*10))):
+                if (self._bid < (self.bid_theo + (self.min_tick*500))):
                     # Keep Order
                     logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
-                    if (self._bid > (my_order_price + (self.min_tick*10))):
+                    if (self._bid > (my_order_price + (self.min_tick*500))):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
                         logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
                         # Cancel Current Order
                         if (not self.auth_client.sent_buy_cancel):
                             logger.warning("Cancelling Order")
                             logger.warning(self.auth_client.my_buy_orders)
-                            self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
-                            self.auth_client.sent_buy_cancel = True
-                            logger.critical("Setting Sent Buy Cancel to True")
+                            exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                            logger.critical("Exchange Message:")
+                            logger.critical(exchange_message)
+                            if 'message' in exchange_message:
+                                if exchange_message['message'] == "order not found":
+                                    logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                else:
+                                    logger.critical("Message is different than expected.")
+                            else:
+                                logger.critical("Exchange Message is our order_ID. Cancel successful.")
+                                self.auth_client.sent_buy_cancel = True
+                                logger.critical("Setting Sent Buy Cancel to True")
                         else:
                             logger.debug("Already sent buy cancel.")
                             self.auth_client.num_buy_cancel_rejects += 1
                             if self.auth_client.num_buy_cancel_rejects > 100:
                                 # The exchange must not have received the cancel request. Sending New Cancel request
                                 # HTTP/1.1 400 32 <-- Error code
+                                logger.critical("This really should not be happening.")
                                 logger.critical("Retrying to Cancel Order:")
                                 logger.critical(self.auth_client.my_buy_orders)
                                 self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
@@ -317,25 +327,36 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_sell_orders) == 1):
                 my_order_price = self.auth_client.my_sell_orders[0]['price']
 
-                if (self._ask > (self.ask_theo - (self.min_tick * 10))):
+                if (self._ask > (self.ask_theo - (self.min_tick * 500))):
                     # Keep Order
                     logger.debug("Ask: " + str(self._ask) + " should be greater than " + str(self.ask_theo - (self.min_tick*10)))
-                    if (self._ask < (my_order_price - (self.min_tick * 10))):
+                    if (self._ask < (my_order_price - (self.min_tick * 500))):
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
                         logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
                         # Cancel Current Order
                         if (not self.auth_client.sent_sell_cancel):
                             logger.warning("Cancelling Order")
                             logger.warning(self.auth_client.my_sell_orders)
-                            self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
-                            self.auth_client.sent_sell_cancel = True
-                            logger.critical("Setting Sent Sell Cancel to True")
+                            exchange_message = None
+                            exchange_message = self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                            logger.critical("Exchange Message:")
+                            logger.critical(exchange_message)
+                            if 'message' in exchange_message:
+                                if exchange_message['message'] == "order not found":
+                                    logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                else:
+                                    logger.critical("Message is different than expected.")
+                            else:
+                                logger.critical("Exchange messaage is our order_id. Cancel successful.")
+                                self.auth_client.sent_sell_cancel = True
+                                logger.critical("Setting Sent Sell Cancel to True.")
                         else:
                             logger.debug("Already sent sell cancel.")
                             self.auth_client.num_sell_cancel_rejects += 1
                             if self.auth_client.num_sell_cancel_rejects > 100:
                                 # The exchange must not have received the cancel request. Sending New Cancel request
                                 # HTTP/1.1 400 32 <-- Error code
+                                logger.critical("This really should not be happening.")
                                 logger.critical("Retrying to Cancel Order:")
                                 logger.critical(self.auth_client.my_sell_orders)
                                 self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])

@@ -70,7 +70,7 @@ while order_book.message_count < 1000000000000:
     if long_sma != None:
         if my_MA.count > 30:
             short_sma =  my_MA.get_sma(30*60)
-            if (order_book.auth_client.net_position > 4 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -4 and short_sma - long_sma > 5):
+            if (order_book.auth_client.net_position > 9 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -9 and short_sma - long_sma > 5):
                 use_long_sma = False
             elif abs(long_sma-short_sma) < 5:
                 use_long_sma = True
