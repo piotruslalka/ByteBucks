@@ -189,7 +189,7 @@ class OrderBookConsole(OrderBook):
 
                 if config.fill_notifications:
                     logger.warning("Sending Slack Notification:")
-                    slack.send_message_to_slack("{} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.auth_client.pnl))
+                    slack.send_message_to_slack("{} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.get_pnl()))
 
             elif message['type'] == 'change':
                 # we received a change messages
