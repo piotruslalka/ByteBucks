@@ -55,10 +55,8 @@ class MyFillOrderBook(AuthenticatedClient):
                 logging.info("Saving Order...")
                 if (side == "buy"):
                     self.my_buy_orders.append(self.clean_message(my_order))
-                    logging.critical(self.my_buy_orders)
                 else:
                     self.my_sell_orders.append(self.clean_message(my_order))
-                    logging.critical(self.my_sell_orders)
                 return (True)
 
         else:
@@ -122,8 +120,6 @@ class MyFillOrderBook(AuthenticatedClient):
             if len(self.my_buy_orders) > 0:
                 if message['maker_order_id'] == self.my_buy_orders[0]['id']:
                     fill_size = message['size']
-                    logger.critical("Clearing Out Dictionary (BEFORE)...")
-                    logger.critical(self.my_buy_orders)
                     remaining_size = self.my_buy_orders[0]['size'] - fill_size
                     if remaining_size > 0.001:
                         self.pnl -= fill_size * message['price']
@@ -137,16 +133,12 @@ class MyFillOrderBook(AuthenticatedClient):
                         self.real_position += self.my_buy_orders[0]['size']
                         self.net_position = round(self.real_position / self.order_size)
                         self.my_buy_orders.clear()
-                        logger.critical("Clearing Out Dictionary (AFTER)...")
-                        logger.critical(self.my_buy_orders)
             else:
                 logger.critical("We received a buy fill with an order_id that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
         elif message['side'] == 'sell':
             if len(self.my_sell_orders) > 0:
                 if message['maker_order_id'] == self.my_sell_orders[0]['id']:
                     fill_size = message['size']
-                    logger.critical("Clearing Out Dictionary (BEFORE)...")
-                    logger.critical(self.my_sell_orders)
                     remaining_size = self.my_sell_orders[0]['size'] - fill_size
                     if remaining_size > 0.001:
                         self.pnl += fill_size * message['price']
@@ -160,8 +152,6 @@ class MyFillOrderBook(AuthenticatedClient):
                         self.real_position -= self.my_sell_orders[0]['size']
                         self.net_position = round(self.real_position / self.order_size)
                         self.my_sell_orders.clear()
-                        logger.critical("Clearing Out Dictionary (AFTER)...")
-                        logger.critical(self.my_sell_orders)
             else:
                 logger.critical("We received a buy fill with an order_id that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
         else:

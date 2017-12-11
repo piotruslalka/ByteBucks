@@ -93,8 +93,6 @@ class OrderBookConsole(OrderBook):
         if 'user_id' in message:
             # We received a private message. Please log it.
             logger.warning("***Private Message Received from Websocket***: user_id - " + message['user_id'] + " found in message.")
-            logger.debug(message)
-            logger.debug("Cleaning Message...")
             message = self.auth_client.clean_message(message)
             logger.debug(message)
 
@@ -167,15 +165,13 @@ class OrderBookConsole(OrderBook):
 
                 if message['reason'] == 'canceled':
                     # Order canceled  received
-                    logger.critical("Cancel Message Received.")
+                    logger.warning("***Cancel Order Message Acknowledged.***")
                     self.auth_client.process_cancel_message(message)
 
                 elif message['reason'] == 'filled':
                     # Fill Message done
                     # Match message comes in first.
                     logger.debug("Message Type == 'done' with a reason of 'filled'")
-                    logger.debug(message)
-
 
                 else:
                     logger.critical("Message Type == 'done' with a new message reason.")
@@ -183,8 +179,6 @@ class OrderBookConsole(OrderBook):
             elif message['type'] == 'match':
                 # We recieved a fill message
                 logger.warning("***Received a Fill Message***")
-                logger.warning(message)
-
                 self.auth_client.process_fill_message(message)
 
                 if config.fill_notifications:
@@ -252,17 +246,17 @@ class OrderBookConsole(OrderBook):
 
                 if (self._bid < (self.bid_theo + (self.min_tick*500))):
                     # Keep Order
-                    logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
+                    #logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
                     if (self._bid > (my_order_price + (self.min_tick*500))):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
-                        logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
+                        #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
                         # Cancel Current Order
                         if (not self.auth_client.sent_buy_cancel):
                             logger.warning("Cancelling Order")
                             logger.warning(self.auth_client.my_buy_orders)
                             exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
-                            logger.critical("Exchange Message:")
-                            logger.critical(exchange_message)
+                            logger.debug("Exchange Message:")
+                            logger.debug(exchange_message)
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
