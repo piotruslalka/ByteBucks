@@ -43,7 +43,7 @@ class MovingAverageCalculation(object):
                 #Remove old data
                 if len(self.data) > self.period:
                     del self.data[0]
-                    logger.debug("Removing old data from MA.")
+                    #logger.debug("Removing old data from MA.")
                             
                 return (smas[-1])
             
