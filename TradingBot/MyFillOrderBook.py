@@ -168,6 +168,86 @@ class MyFillOrderBook(AuthenticatedClient):
             logger.critical("Message Side is not either buy or sell in process fill message.")
             logger.critical(message)
 
+    def verify_orders(self):
+        if (len(self.my_buy_orders) >= 1):
+            order_info = self.get_order(self.my_buy_orders[0]['id'])
+            if(len(order_info)!=1):
+                if(order_info['filled_size']!='0.00000000'):
+                    remaining_size = round(float(order_info['size']) - float(order_info['filled_size']),8)
+                    if(remaining_size <= 0.001):
+                        #Order is completely filled. 
+                        logger.critical("Bid order is completely filled. (Missed fill message?)")
+                        self.pnl -= self.my_buy_orders[0]['size'] * my_buy_orders[0]['price']
+                        self.buy_levels += self.my_buy_orders[0]['size']
+                        self.real_position += self.my_buy_orders[0]['size']
+                        self.net_position = round(self.real_position / self.order_size)
+                        self.my_buy_orders.clear()
+                    elif((remaining_size - round(self.my_buy_orders[0]['size'],8)) > 0.00000001):
+                        logger.critical("Bid order is partially filled. (Missed Portion?)")
+                        fill_size = self.my_buy_orders[0]['size'] - remaining_size
+                        self.pnl -= fill_size * self.my_buy_orders[0]['price']
+                        self.buy_levels += fill_size
+                        self.real_position += fill_size
+                        self.net_position = round(self.real_position / self.order_size)
+                        self.my_buy_orders[0]['size'] = remaining_size
+                    elif(order_info['status'] == 'done'):
+                        #Order has been marked as complete.
+                        logger.critical("Current Bid order is marked as complete with no missed volume. Removing from dictionary.")
+                        self.my_buy_orders.clear()
+                    else:
+                        #Order appears to be currently valid.
+                        logger.critical("Current Bid order with partial fills is valid.")
+                elif(order_info['status'] == 'done'):
+                    #Order has been marked as complete.
+                    logger.critical("Current Bid order is marked as complete with no filled volume. Removing from dictionary.")
+                    self.my_buy_orders.clear()
+                else:
+                    #Order appears to be currently valid.
+                    logger.critical("Current Bid order is valid.")
+            else:
+                #This is likely a major problem!
+                logger.critical("Order is not valid:" + self.my_buy_orders[0]['id'])
+                logger.critical(order_info)
+            
+        if (len(self.my_sell_orders) >= 1):
+            order_info = self.get_order(self.my_sell_orders[0]['id'])
+            if(len(order_info)!=1):
+                if(order_info['filled_size']!='0.00000000'):
+                    remaining_size = round(float(order_info['size']) - float(order_info['filled_size']),8)
+                    if(remaining_size <= 0.001):
+                        #Order is completely filled. 
+                        logger.critical("Ask order is completely filled. (Missed fill message?)")
+                        self.pnl += self.my_sell_orders[0]['size'] * self.my_sell_orders[0]['price']
+                        self.sell_levels += self.my_sell_orders[0]['size']
+                        self.real_position -= self.my_sell_orders[0]['size']
+                        self.net_position = round(self.real_position / self.order_size)
+                        self.my_sell_orders.clear()
+                    elif((remaining_size - round(self.my_sell_orders[0]['size'],8)) > 0.00000001):
+                        logger.critical("Bid order is partially filled. (Missed Portion?)")
+                        fill_size = self.my_sell_orders[0]['size'] - remaining_size
+                        self.pnl += fill_size * self.my_sell_orders[0]['price']
+                        self.sell_levels += fill_size
+                        self.real_position -= fill_size
+                        self.net_position = round(self.real_position / self.order_size)
+                        self.my_sell_orders[0]['size'] = remaining_size
+                    elif(order_info['status'] == 'done'):
+                        #Order has been marked as complete.
+                        logger.critical("Current Bid order is marked as complete with no missed volume. Removing from dictionary.")
+                        self.my_sell_orders.clear()
+                    else:
+                        #Order appears to be currently valid.
+                        logger.critical("Current Bid order with partial fills is valid.")
+                elif(order_info['status'] == 'done'):
+                    #Order has been marked as complete.
+                    logger.critical("Current Bid order is marked as complete with no filled volume. Removing from dictionary.")
+                    self.my_sell_orders.clear()
+                else:
+                    #Order appears to be currently valid.
+                    logger.critical("Current Bid order is valid.")
+            else:
+                #This is likely a major problem!
+                logger.critical("Order is not valid:" + self.my_sell_orders[0]['id'])
+                logger.critical(order_info)
 
 
     # def add_my_fill(self, fill):

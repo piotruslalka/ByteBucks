@@ -106,6 +106,8 @@ while order_book.message_count < 1000000000000:
             real_position = order_book.auth_client.real_position
             net_position = order_book.auth_client.net_position
             current_pnl = order_book.auth_client.pnl
+            current_bids = order_book.auth_client.my_buy_orders
+            current_asks = order_book.auth_client.my_sell_orders
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
@@ -115,10 +117,13 @@ while order_book.message_count < 1000000000000:
             order_book.auth_client.real_position = real_position
             order_book.auth_client.net_position = net_position
             order_book.auth_client.pnl = current_pnl
+            order_book.auth_client.my_buy_orders = current_bids
+            order_book.auth_client.my_sell_orders = current_asks
             order_book.auth = True
             order_book.api_key = myKeys['key']
             order_book.api_secret = myKeys['secret']
             order_book.api_passphrase = myKeys['passphrase']
+            order_book.auth_client.verify_orders()
             order_book.start()
             stale_message_count=-1
         stale_message_count=order_book.message_count
