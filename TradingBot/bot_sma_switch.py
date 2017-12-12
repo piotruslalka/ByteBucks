@@ -51,8 +51,8 @@ order_book.api_secret = myKeys['secret']
 order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
-# Moving Average Initialization. Using 4 hour MA.
-my_MA = MovingAverageCalculation(period=3*60*60)
+# Moving Average Initialization. Using 3 hour MA.
+my_MA = MovingAverageCalculation(period=4*60*60)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
@@ -71,7 +71,7 @@ while order_book.message_count < 1000000000000:
     if long_sma != None:
         if my_MA.count > 30:
             short_sma =  my_MA.get_sma(30*60)
-            if (order_book.auth_client.net_position > 9 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -9 and short_sma - long_sma > 5):
+            if (order_book.auth_client.net_position > 19 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -19 and short_sma - long_sma > 5):
                 use_long_sma = False
             elif abs(long_sma-short_sma) < 5:
                 use_long_sma = True
