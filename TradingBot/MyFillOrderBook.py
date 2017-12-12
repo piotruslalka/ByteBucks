@@ -43,7 +43,15 @@ class MyFillOrderBook(AuthenticatedClient):
 
         logger.warning("We are placing an Order at:" + str_price)
 
-        my_order = self.place_limit_order(product_id='BTC-USD', side=side, price=str_price, size=str_size, time_in_force='GTC', post_only=True)
+        if side=='buy':
+            my_order = self.buy(product_id='BTC-USD', price=str_price, size=str_size, time_in_force='GTC', post_only=True)
+        elif side=='sell':
+            my_order = self.sell(product_id='BTC-USD', price=str_price, size=str_size, time_in_force='GTC', post_only=True)
+        else:
+            #Sent order place without side!
+            logging.critical("Invalid order side! " + side)
+            return (False)
+            
         logger.warning(my_order)
 
         # Check if limit order Rejected
@@ -65,7 +73,7 @@ class MyFillOrderBook(AuthenticatedClient):
             logger.error("status is not in my_order")
             logger.error(my_order)
             return (False)
-
+    
     def clean_message(self, message):
         if 'price' in message:
             message['price'] = float(message['price'])

@@ -266,6 +266,8 @@ class OrderBookConsole(OrderBook):
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                elif exchange_message['message'] == 'Order already done':
+                                    this.auth_client.verify_orders()
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
@@ -287,6 +289,8 @@ class OrderBookConsole(OrderBook):
                                 if 'message' in exchange_message:
                                     if exchange_message['message'] == "order not found":
                                         logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                    elif exchange_message['message'] == 'Order already done':
+                                        this.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
                                 else:
@@ -315,7 +319,7 @@ class OrderBookConsole(OrderBook):
                     order_price += self.min_tick
 
                 place_size = self.order_size
-                if self.auth_client.real_position < 2 * self.order_size and self.auth_client.real_position > self.min_order_size:
+                if -self.min_order_size > self.auth_client.real_position and self.auth_client.real_position > -2 * self.order_size:
                     place_size = self.auth_client.real_position
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
@@ -359,6 +363,8 @@ class OrderBookConsole(OrderBook):
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                elif exchange_message['message'] == 'Order already done':
+                                    this.auth_client.verify_orders()
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
@@ -380,6 +386,8 @@ class OrderBookConsole(OrderBook):
                                 if 'message' in exchange_message:
                                     if exchange_message['message'] == "order not found":
                                         logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                    elif exchange_message['message'] == 'Order already done':
+                                        this.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
                                 else:
@@ -407,7 +415,7 @@ class OrderBookConsole(OrderBook):
                     order_price -= self.min_tick
 
                 place_size = self.order_size
-                if self.auth_client.real_position < 2 * self.order_size and self.auth_client.real_position > self.min_order_size:
+                if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 2 * self.order_size:
                     place_size = self.auth_client.real_position
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = place_size)
@@ -425,6 +433,6 @@ class OrderBookConsole(OrderBook):
                     logger.critical("Order Rejected... Trying again")
                     logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
                     self.num_order_rejects = self.num_order_rejects + 1
-
+    
     def get_pnl(self):
         return self.auth_client.pnl + self.auth_client.real_position * float(self.trade_price)
