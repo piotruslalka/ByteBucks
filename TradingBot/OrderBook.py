@@ -266,8 +266,6 @@ class OrderBookConsole(OrderBook):
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
-                                elif exchange_message['message'] == 'Order already done':
-                                    this.auth_client.verify_orders()
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
@@ -290,7 +288,7 @@ class OrderBookConsole(OrderBook):
                                     if exchange_message['message'] == "order not found":
                                         logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
                                     elif exchange_message['message'] == 'Order already done':
-                                        this.auth_client.verify_orders()
+                                        self.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
                                 else:
@@ -363,8 +361,6 @@ class OrderBookConsole(OrderBook):
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
-                                elif exchange_message['message'] == 'Order already done':
-                                    this.auth_client.verify_orders()
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
@@ -387,7 +383,7 @@ class OrderBookConsole(OrderBook):
                                     if exchange_message['message'] == "order not found":
                                         logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
                                     elif exchange_message['message'] == 'Order already done':
-                                        this.auth_client.verify_orders()
+                                        self.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
                                 else:

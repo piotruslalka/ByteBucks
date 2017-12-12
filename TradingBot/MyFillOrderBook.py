@@ -185,7 +185,7 @@ class MyFillOrderBook(AuthenticatedClient):
                     if(remaining_size <= 0.001):
                         #Order is completely filled. 
                         logger.critical("Bid order is completely filled. (Missed fill message?)")
-                        self.pnl -= self.my_buy_orders[0]['size'] * my_buy_orders[0]['price']
+                        self.pnl -= self.my_buy_orders[0]['size'] * self.my_buy_orders[0]['price']
                         self.buy_levels += self.my_buy_orders[0]['size']
                         self.real_position += self.my_buy_orders[0]['size']
                         self.net_position = round(self.real_position / self.order_size)
