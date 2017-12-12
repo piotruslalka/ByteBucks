@@ -52,12 +52,13 @@ order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
 # Moving Average Initialization. Using 4 hour MA.
-my_MA = MovingAverageCalculation(period=25200)
+my_MA = MovingAverageCalculation(period=3*60*60)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
 timer_count = 0
 use_long_sma = True
+reset_not_triggered = True
 while order_book.message_count < 1000000000000:
     loop_count += 1
     my_MA.count += 1
@@ -92,7 +93,43 @@ while order_book.message_count < 1000000000000:
 
     time.sleep(1)
 
+    if order_book.stop and reset_not_triggered:
+            reset_not_triggered = False
+            if config.connection_notifications:
+                slack.send_message_to_slack("Connection has stopped. Restarting. Stop = True!")
+                logger.error("Connection has stopped. Restarting. Stop = True!")
+
+            # Copy Critical Info from dead order book
+            buy_levels = order_book.auth_client.buy_levels
+            sell_levels = order_book.auth_client.sell_levels
+            real_position = order_book.auth_client.real_position
+            net_position = order_book.auth_client.net_position
+            current_pnl = order_book.auth_client.pnl
+            current_bids = order_book.auth_client.my_buy_orders
+            current_asks = order_book.auth_client.my_sell_orders
+            order_book.close()
+
+            # Populate New Order book with previously saved critical info.
+            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
+            order_book.auth_client.buy_levels = buy_levels
+            order_book.auth_client.sell_levels = sell_levels
+            order_book.auth_client.real_position = real_position
+            order_book.auth_client.net_position = net_position
+            order_book.auth_client.pnl = current_pnl
+            order_book.auth_client.my_buy_orders = current_bids
+            order_book.auth_client.my_sell_orders = current_asks
+            order_book.auth = True
+            order_book.api_key = myKeys['key']
+            order_book.api_secret = myKeys['secret']
+            order_book.api_passphrase = myKeys['passphrase']
+            order_book.auth_client.verify_orders()
+            order_book.start()
+
     if ((loop_count - timer_count) > 15):
+        reset_not_triggered = True
+        if(order_book.message_count == 0):
+            logger.critical("GDAX connection problem. Pausing 60 seconds.")
+            time.sleep(60)
         timer_count = loop_count
         logger.info("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
@@ -106,6 +143,8 @@ while order_book.message_count < 1000000000000:
             real_position = order_book.auth_client.real_position
             net_position = order_book.auth_client.net_position
             current_pnl = order_book.auth_client.pnl
+            current_bids = order_book.auth_client.my_buy_orders
+            current_asks = order_book.auth_client.my_sell_orders
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
@@ -115,10 +154,13 @@ while order_book.message_count < 1000000000000:
             order_book.auth_client.real_position = real_position
             order_book.auth_client.net_position = net_position
             order_book.auth_client.pnl = current_pnl
+            order_book.auth_client.my_buy_orders = current_bids
+            order_book.auth_client.my_sell_orders = current_asks
             order_book.auth = True
             order_book.api_key = myKeys['key']
             order_book.api_secret = myKeys['secret']
             order_book.api_passphrase = myKeys['passphrase']
+            order_book.auth_client.verify_orders()
             order_book.start()
             stale_message_count=-1
         stale_message_count=order_book.message_count

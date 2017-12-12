@@ -33,5 +33,5 @@ while count < 1000000000000:
 		for order in my_orders:
 			print(order)
 	print(my_orders)
-	time.sleep(5*60)
+	time.sleep(3*60)
 	count += 1
