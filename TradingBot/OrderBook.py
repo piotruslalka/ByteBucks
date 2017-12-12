@@ -46,7 +46,7 @@ class OrderBookConsole(OrderBook):
         self.num_order_rejects = 0
         self.num_rejections = 0
         self.min_tick = round(0.01, 2)
-        self.min_order_size = round(0.01, 2)
+        self.min_order_size = round(0.001, 2)
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'])
 
@@ -312,7 +312,7 @@ class OrderBookConsole(OrderBook):
 
                 place_size = self.order_size
                 if -self.min_order_size > self.auth_client.real_position and self.auth_client.real_position > -2 * self.order_size:
-                    place_size = self.auth_client.real_position
+                    place_size = round(-self.auth_client.real_position,8)
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
                 logger.info("Bid is lower than Bid Theo, we are placing a Buy Order at:" + str(self._bid + self.min_tick) + "\t"
@@ -406,7 +406,7 @@ class OrderBookConsole(OrderBook):
 
                 place_size = self.order_size
                 if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 2 * self.order_size:
-                    place_size = self.auth_client.real_position
+                    place_size = round(self.auth_client.real_position,8)
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = place_size)
                 logger.info("Ask is Higher than Ask Theo, we are placing a Sell order at:" + str(self._ask - self.min_tick) + "\t"
