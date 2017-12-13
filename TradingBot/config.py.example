@@ -1,17 +1,17 @@
 # I store my API Keys here
 live = {
-    "key": "36d061a6ecede2fd517a7748a3f6f0b2",
-    "secret": "/bYUpaRl7aHIy5xn6AQHQBaaMa99blKCB+OpQjWzGyyOrF1xZzUy2+DeRlpbo6jYpzIerrrfqc7GXDUC+EYcmQ==",
-    "passphrase": "pr0f1t@bl3",
+    "key": "INSERT_MY_KEY_HERE",
+    "secret": "INSERT_MY_SECRET_HERE",
+    "passphrase": "INSERT_MY_PASSPHRASE_HERE",
     }
 
 sandbox = {
-    "key": "48183b9ec8d554876a1c04204b9d8049",
-    "secret": "PXwrRQxOeg4o+cXhv2Uwu3GQ082YFr6gEmcCFLeqhxMZjnmYWHYidWwYBeSF6fb54Ln9oQPy9AjC51H/7s1+1A==",
-    "passphrase": "pr0f1t@bl3",
+    "key": "INSERT_MY_KEY_HERE",
+    "secret": "INSERT_MY_SECRET_HERE",
+    "passphrase": "INSERT_MY_PASSPHRASE_HERE",
     }
 
-my_user_id = "59ab0cbeebee8400dde78420999999"
+my_user_id = "INSERT_MY_USER_ID_HERE"
 
-slack = 'https://hooks.slack.com/services/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'
+slack = 'INSERT_WEBHOOK_HERE'
 debug = False

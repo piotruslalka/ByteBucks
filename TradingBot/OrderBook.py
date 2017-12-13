@@ -52,7 +52,7 @@ class OrderBookConsole(OrderBook):
         self.min_tick = round(0.01, 2)
         self.min_order_size = round(0.0001, 4)
         self.myKeys = keys
-        self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'])
+        self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'], strategy_settings)
 
         logger.info("Settings Used:")
         logger.info("Order Size: {}\tBuy Initial Offset: {}\tSell Initial Offset: {}\tBuy Additional Offset: {}\tSell Additional Offset: {}\tBuy Profit Target Mult: {}\tSell Profit Target Mult: {}".format(self.order_size, self.buy_initial_offset, self.sell_initial_offset, self.buy_additional_offset, self.sell_additional_offset, self.buy_profit_target_multiplier, self.sell_profit_target_multiplier))
@@ -182,8 +182,24 @@ class OrderBookConsole(OrderBook):
 
             elif message['type'] == 'match':
                 # We recieved a fill message
-                logger.warning("***Received a Fill Message***")
-                self.auth_client.process_fill_message(message)
+                if message['side'] == 'buy':
+                    if len(self.auth_client.my_buy_orders) > 0:
+                        if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['id']:
+                            logger.warning("***Received a Buy Fill Message***")
+                            self.auth_client.process_fill_message(message)
+                            if self.fill_notifications:
+                                logger.warning("Sending Slack Notification:")
+                                slack.send_message_to_slack("{}: {} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.get_pnl()))
+                elif message['side'] == 'sell':
+                    if len(self.auth_client.my_sell_orders) > 0:
+                        if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['id']:
+                            logger.warning("****Received a Sell Fill Message***")
+                            self.auth_client.process_fill_message(message)
+                            if self.fill_notifications:
+                                logger.warning("Sending Slack Notification:")
+                                slack.send_message_to_slack("{}: {} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.get_pnl()))
+                else:
+                    logger.critical("We received a message that had something other than a buy or sell for the side...")
 
             elif message['type'] == 'change':
                 # we received a change messages
@@ -431,6 +447,7 @@ class OrderBookConsole(OrderBook):
                     logger.critical("Order Rejected... Trying again")
                     logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
                     self.num_order_rejects = self.num_order_rejects + 1
+
 
     def get_pnl(self):
         return self.auth_client.pnl + self.auth_client.real_position * float(self.trade_price)
