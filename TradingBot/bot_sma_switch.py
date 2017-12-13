@@ -1,5 +1,6 @@
 import time
-import config
+import config_bot_sma_switch as strategy_config
+import config as config
 import logging
 import numpy as np
 import slack
@@ -21,14 +22,14 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Error file handler and set level to ERROR
-handler = logging.FileHandler(os.path.join("C:", "error_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+handler = logging.FileHandler(os.path.join("C:", "error_" + strategy_config.strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
 handler.setLevel(logging.WARNING)
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Debug file handler and set level to DEBUG
-handler = logging.FileHandler(os.path.join("C:", "debug_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_config.strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
 handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
@@ -44,7 +45,7 @@ for key, value in myKeys.items():
 logger.info("My user_id is: " + my_user_id)
 
 # Start Up OrderBook
-order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
+order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_config.strategy_settings)
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
@@ -95,7 +96,7 @@ while order_book.message_count < 1000000000000:
 
     if order_book.stop and reset_not_triggered:
             reset_not_triggered = False
-            if config.connection_notifications:
+            if config.strategy_settings.get('connection_notifications'):
                 slack.send_message_to_slack("Connection has stopped. Restarting. Stop = True!")
                 logger.error("Connection has stopped. Restarting. Stop = True!")
 
@@ -134,7 +135,7 @@ while order_book.message_count < 1000000000000:
         timer_count = loop_count
         logger.info("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
-            if config.connection_notifications:
+            if config.strategy_settings.get('connection_notifications'):
                 slack.send_message_to_slack("Connection has stopped. Restarting.")
                 logger.error("Connection has stopped. Restarting")
 
