@@ -27,3 +27,5 @@ buy_initial_offset = 100
 sell_initial_offset = 100
 buy_additional_offset = 2
 sell_additional_offset = 2
+max_long_position = 50
+max_short_position = 50

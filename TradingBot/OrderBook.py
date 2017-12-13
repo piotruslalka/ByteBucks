@@ -39,6 +39,8 @@ class OrderBookConsole(OrderBook):
         self.sell_initial_offset = config.sell_initial_offset
         self.buy_additional_offset = config.buy_additional_offset
         self.sell_additional_offset = config.sell_additional_offset
+        self.max_long_position = config.max_long_position
+        self.max_short_position = config.max_short_position
         self.buy_profit_target_multiplier = 1
         self.sell_profit_target_multiplier = 1
         self.bid_theo = 0
@@ -46,7 +48,7 @@ class OrderBookConsole(OrderBook):
         self.num_order_rejects = 0
         self.num_rejections = 0
         self.min_tick = round(0.01, 2)
-        self.min_order_size = round(0.001, 2)
+        self.min_order_size = round(0.0001, 4)
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'])
 
@@ -247,7 +249,7 @@ class OrderBookConsole(OrderBook):
                 if (self._bid < (self.bid_theo + (self.min_tick*500))):
                     # Keep Order
                     #logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
-                    if (self._bid > (my_order_price + (self.min_tick*500))):
+                    if (self._bid > (my_order_price + (self.min_tick*0))):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
                         #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
                         # Cancel Current Order
@@ -260,6 +262,9 @@ class OrderBookConsole(OrderBook):
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                elif exchange_message['message'] == 'Order already done':
+                                    logger.critical("Order is already canceled or filled. Verifying orders now.")
+                                    self.auth_client.verify_orders()
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
@@ -282,6 +287,7 @@ class OrderBookConsole(OrderBook):
                                     if exchange_message['message'] == "order not found":
                                         logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
                                     elif exchange_message['message'] == 'Order already done':
+                                        logger.critical("Order is already canceled or filled.")
                                         self.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
@@ -304,18 +310,18 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We do not currently have any active orders.
-            if ((self._bid + self.min_tick) < self.bid_theo):
+            if ((self._bid + self.min_tick) < self.bid_theo and self.auth_client.net_position < self.max_long_position):
                 # We want to place a Buy Order
                 order_price = self._bid
                 if self._spread > .01:
                     order_price += self.min_tick
 
                 place_size = self.order_size
-                if -self.min_order_size > self.auth_client.real_position and self.auth_client.real_position > -2 * self.order_size:
+                if (-self.min_order_size) > self.auth_client.real_position and self.auth_client.real_position > -2 * self.order_size:
                     place_size = round(-self.auth_client.real_position,8)
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
-                logger.info("Bid is lower than Bid Theo, we are placing a Buy Order at:" + str(self._bid + self.min_tick) + "\t"
+                logger.info("Bid is lower than Bid Theo, we are placing a Buy Order of: " + str(place_size) + " at:" + str(order_price) + "\t"
                                 + "Bid: " + str(self._bid) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
 
                 if order_successful:
@@ -341,7 +347,7 @@ class OrderBookConsole(OrderBook):
                 if (self._ask > (self.ask_theo - (self.min_tick * 500))):
                     # Keep Order
                     logger.debug("Ask: " + str(self._ask) + " should be greater than " + str(self.ask_theo - (self.min_tick*10)))
-                    if (self._ask < (my_order_price - (self.min_tick * 500))):
+                    if (self._ask < (my_order_price - (self.min_tick * 0))):
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
                         logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
                         # Cancel Current Order
@@ -355,6 +361,9 @@ class OrderBookConsole(OrderBook):
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                elif exchange_message['message'] == 'Order already done':
+                                    logger.critical("Order is already canceled or filled. Verifying orders now.")
+                                    self.auth_client.verify_orders()
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
@@ -377,6 +386,7 @@ class OrderBookConsole(OrderBook):
                                     if exchange_message['message'] == "order not found":
                                         logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
                                     elif exchange_message['message'] == 'Order already done':
+                                        logger.critical("Order is already canceled or filled.")
                                         self.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
@@ -398,7 +408,7 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We do not currently have any active orders.
-            if ((self._ask - self.min_tick) > self.ask_theo):
+            if ((self._ask - self.min_tick) > self.ask_theo and self.auth_client.net_position > -self.max_short_position):
                 # We want to place a Sell Order
                 order_price = self._ask
                 if self._spread > .01:
@@ -409,7 +419,7 @@ class OrderBookConsole(OrderBook):
                     place_size = round(self.auth_client.real_position,8)
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = place_size)
-                logger.info("Ask is Higher than Ask Theo, we are placing a Sell order at:" + str(self._ask - self.min_tick) + "\t"
+                logger.info("Ask is Higher than Ask Theo, we are placing a Sell order of: " + str(place_size) + " at:" + str(self._ask - self.min_tick) + "\t"
                               + "Ask: " + str(self._ask) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
                 if order_successful:
                     # if config.place_notifications:

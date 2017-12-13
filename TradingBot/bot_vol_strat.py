@@ -52,7 +52,7 @@ order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
 # Moving Average Initialization. Using 4 hour MA.
-my_MA = MovingAverageCalculation(period=4*60*60)
+my_MA = MovingAverageCalculation(period=5*60)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
@@ -70,22 +70,13 @@ while order_book.message_count < 1000000000000:
 
     if long_sma != None:
         if my_MA.count > 30:
-            short_sma =  my_MA.get_sma(30*60)
-            if (order_book.auth_client.net_position > 9 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -9 and short_sma - long_sma > 5):
-                use_long_sma = False
-            elif abs(long_sma-short_sma) < 5:
-                use_long_sma = True
-
-            if use_long_sma:
-                order_book.sma = long_sma
-            else:
-                order_book.sma = short_sma
+            order_book.sma = long_sma
 
             order_book.valid_sma = True
-            order_book.short_std = my_MA.get_weighted_std(5*60) * 2
-            order_book.long_std = my_MA.get_weighted_std(30*60) / 2
+            order_book.short_std = my_MA.get_weighted_std(1*60)
+            order_book.long_std = my_MA.get_weighted_std(5*60)
             #logger.info('RP:' + str(order_book.real_position) + ' pl:' + str(order_book.pnl) + ' NP:' + str(order_book.auth_client.net_position))
-            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tlSMA: {:.2f}\tsSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, long_sma, short_sma))
+            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std))
 
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
@@ -124,7 +115,6 @@ while order_book.message_count < 1000000000000:
             order_book.api_passphrase = myKeys['passphrase']
             order_book.auth_client.verify_orders()
             order_book.start()
-            timer_count = loop_count
 
     if ((loop_count - timer_count) > 15):
         reset_not_triggered = True
