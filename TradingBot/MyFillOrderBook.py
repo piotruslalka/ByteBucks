@@ -129,7 +129,7 @@ class MyFillOrderBook(AuthenticatedClient):
                 if message['maker_order_id'] == self.my_buy_orders[0]['id']:
                     fill_size = message['size']
                     remaining_size = self.my_buy_orders[0]['size'] - fill_size
-                    if remaining_size > 0.001:
+                    if remaining_size > 0.1*self.order_size:
                         self.pnl -= fill_size * message['price']
                         self.buy_levels += fill_size
                         self.real_position += fill_size
@@ -148,7 +148,7 @@ class MyFillOrderBook(AuthenticatedClient):
                 if message['maker_order_id'] == self.my_sell_orders[0]['id']:
                     fill_size = message['size']
                     remaining_size = self.my_sell_orders[0]['size'] - fill_size
-                    if remaining_size > 0.001:
+                    if remaining_size > 0.1*self.order_size:
                         self.pnl += fill_size * message['price']
                         self.sell_levels += fill_size
                         self.real_position -= fill_size
