@@ -15,7 +15,7 @@ logger = logging.getLogger('botLog')
 class OrderBookConsole(OrderBook):
     ''' Logs real-time changes to the bid-ask spread to the console '''
 
-    def __init__(self, product_id=None, keys=None):
+    def __init__(self, product_id=None, keys=None, strategy_settings=None):
         super(OrderBookConsole, self).__init__(product_id=product_id)
 
         logger.info("Entered into the OrderBook Class!")
@@ -34,13 +34,15 @@ class OrderBookConsole(OrderBook):
         self.valid_sma = False
         self.short_std = 0
         self.long_std = 0
-        self.order_size = config.order_size
-        self.buy_initial_offset = config.buy_initial_offset
-        self.sell_initial_offset = config.sell_initial_offset
-        self.buy_additional_offset = config.buy_additional_offset
-        self.sell_additional_offset = config.sell_additional_offset
-        self.max_long_position = config.max_long_position
-        self.max_short_position = config.max_short_position
+        self.strategy_name = strategy_settings.get('strategy_name')
+        self.order_size = strategy_settings.get('order_size')
+        self.buy_initial_offset = strategy_settings.get('buy_initial_offset')
+        self.sell_initial_offset = strategy_settings.get('sell_initial_offset')
+        self.buy_additional_offset = strategy_settings.get('buy_additional_offset')
+        self.sell_additional_offset = strategy_settings.get('sell_additional_offset')
+        self.max_long_position = strategy_settings.get('max_long_position')
+        self.max_short_position = strategy_settings.get('max_short_position')
+        self.fill_notifications = strategy_settings.get('fill_notifications')
         self.buy_profit_target_multiplier = 1
         self.sell_profit_target_multiplier = 1
         self.bid_theo = 0
@@ -182,10 +184,6 @@ class OrderBookConsole(OrderBook):
                 # We recieved a fill message
                 logger.warning("***Received a Fill Message***")
                 self.auth_client.process_fill_message(message)
-
-                if config.fill_notifications:
-                    logger.warning("Sending Slack Notification:")
-                    slack.send_message_to_slack("{} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.get_pnl()))
 
             elif message['type'] == 'change':
                 # we received a change messages
@@ -433,6 +431,6 @@ class OrderBookConsole(OrderBook):
                     logger.critical("Order Rejected... Trying again")
                     logger.critical("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
                     self.num_order_rejects = self.num_order_rejects + 1
-    
+
     def get_pnl(self):
         return self.auth_client.pnl + self.auth_client.real_position * float(self.trade_price)

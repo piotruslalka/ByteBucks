@@ -1,5 +1,4 @@
 import logging
-import config
 
 from gdax.authenticated_client import AuthenticatedClient
 from decimal import Decimal
@@ -31,7 +30,6 @@ class MyFillOrderBook(AuthenticatedClient):
         self.sent_sell_cancel = False
         self.num_buy_cancel_rejects = 0
         self.num_sell_cancel_rejects = 0
-        self.order_size = config.order_size
 
     def place_my_limit_order(self, side, price, size='0.01'):
         """ I place the limit order here """
@@ -51,7 +49,7 @@ class MyFillOrderBook(AuthenticatedClient):
             #Sent order place without side!
             logging.critical("Invalid order side! " + side)
             return (False)
-            
+
         logger.warning(my_order)
 
         # Check if limit order Rejected
@@ -71,7 +69,7 @@ class MyFillOrderBook(AuthenticatedClient):
             logger.error("status is not in my_order")
             logger.error(my_order)
             return (False)
-    
+
     def clean_message(self, message):
         if 'price' in message:
             message['price'] = float(message['price'])
@@ -141,6 +139,11 @@ class MyFillOrderBook(AuthenticatedClient):
                         self.real_position += self.my_buy_orders[0]['size']
                         self.net_position = round(self.real_position / self.order_size)
                         self.my_buy_orders.clear()
+
+                    if self.fill_notifications:
+                        logger.warning("Sending Slack Notification:")
+                        slack.send_message_to_slack("{}: {} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.net_position, self.get_pnl()))
+
             else:
                 logger.critical("We received a buy fill with an order_id that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
         elif message['side'] == 'sell':
@@ -160,6 +163,12 @@ class MyFillOrderBook(AuthenticatedClient):
                         self.real_position -= self.my_sell_orders[0]['size']
                         self.net_position = round(self.real_position / self.order_size)
                         self.my_sell_orders.clear()
+
+
+                    if self.fill_notifications:
+                        logger.warning("Sending Slack Notification:")
+                        slack.send_message_to_slack("{}: {} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.net_position, self.get_pnl()))
+
             else:
                 logger.critical("We received a buy fill with an order_id that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
         else:
@@ -173,7 +182,7 @@ class MyFillOrderBook(AuthenticatedClient):
                 if(order_info['filled_size']!='0.00000000'):
                     remaining_size = round(float(order_info['size']) - float(order_info['filled_size']),8)
                     if(remaining_size <= 0.001):
-                        #Order is completely filled. 
+                        #Order is completely filled.
                         logger.critical("Bid order is completely filled. (Missed fill message?)")
                         self.pnl -= self.my_buy_orders[0]['size'] * self.my_buy_orders[0]['price']
                         self.buy_levels += self.my_buy_orders[0]['size']
@@ -206,14 +215,14 @@ class MyFillOrderBook(AuthenticatedClient):
                 #This is likely a major problem!
                 logger.critical("Order is not valid:" + self.my_buy_orders[0]['id'])
                 logger.critical(order_info)
-            
+
         if (len(self.my_sell_orders) >= 1):
             order_info = self.get_order(self.my_sell_orders[0]['id'])
             if(len(order_info)!=1):
                 if(order_info['filled_size']!='0.00000000'):
                     remaining_size = round(float(order_info['size']) - float(order_info['filled_size']),8)
                     if(remaining_size <= 0.001):
-                        #Order is completely filled. 
+                        #Order is completely filled.
                         logger.critical("Ask order is completely filled. (Missed fill message?)")
                         self.pnl += self.my_sell_orders[0]['size'] * self.my_sell_orders[0]['price']
                         self.sell_levels += self.my_sell_orders[0]['size']
