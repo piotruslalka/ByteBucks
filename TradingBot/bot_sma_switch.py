@@ -1,6 +1,5 @@
 import time
-import config_bot_sma_switch as strategy_config
-import config as config
+import config
 import logging
 import numpy as np
 import slack
@@ -14,8 +13,8 @@ from datetime import datetime
 strategy_settings = {
     'strategy_name': "bot_sma_switch",
     'order_size': 0.001,
-    'buy_initial_offset': 1,
-    'sell_initial_offset': 1,
+    'buy_initial_offset': 5,
+    'sell_initial_offset': 5,
     'buy_additional_offset': 1,
     'sell_additional_offset': 1,
     'max_long_position': 100,
