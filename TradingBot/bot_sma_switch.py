@@ -149,7 +149,7 @@ while order_book.message_count < 1000000000000:
         timer_count = loop_count
         logger.info("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
-            if strategy_config.strategy_settings.get('connection_notifications'):
+            if strategy_settings.strategy_settings.get('connection_notifications'):
                 slack.send_message_to_slack("Connection has stopped. Restarting.")
                 logger.error("Connection has stopped. Restarting")
 
