@@ -52,8 +52,8 @@ order_book.api_secret = myKeys['secret']
 order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
-# Moving Average Initialization. Using 4 hour MA.
-my_MA = MovingAverageCalculation(period=4*60*60)
+# Moving Average Initialization. Using 3 hour MA.
+my_MA = MovingAverageCalculation(period=3*60*60)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
@@ -72,7 +72,7 @@ while order_book.message_count < 1000000000000:
     if long_sma != None:
         if my_MA.count > 30:
             short_sma =  my_MA.get_sma(30*60)
-            if (order_book.auth_client.net_position > 9 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -9 and short_sma - long_sma > 5):
+            if (order_book.auth_client.net_position > 19 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -19 and short_sma - long_sma > 5):
                 use_long_sma = False
             elif abs(long_sma-short_sma) < 5:
                 use_long_sma = True
@@ -96,7 +96,7 @@ while order_book.message_count < 1000000000000:
 
     if order_book.stop and reset_not_triggered:
             reset_not_triggered = False
-            if config.strategy_settings.get('connection_notifications'):
+            if strategy_config.strategy_settings.get('connection_notifications'):
                 slack.send_message_to_slack("Connection has stopped. Restarting. Stop = True!")
                 logger.error("Connection has stopped. Restarting. Stop = True!")
 
@@ -111,7 +111,7 @@ while order_book.message_count < 1000000000000:
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
-            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
+            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_config.strategy_settings)
             order_book.auth_client.buy_levels = buy_levels
             order_book.auth_client.sell_levels = sell_levels
             order_book.auth_client.real_position = real_position
@@ -135,7 +135,7 @@ while order_book.message_count < 1000000000000:
         timer_count = loop_count
         logger.info("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
-            if config.strategy_settings.get('connection_notifications'):
+            if strategy_config.strategy_settings.get('connection_notifications'):
                 slack.send_message_to_slack("Connection has stopped. Restarting.")
                 logger.error("Connection has stopped. Restarting")
 
@@ -150,7 +150,7 @@ while order_book.message_count < 1000000000000:
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
-            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
+            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_config.strategy_settings)
             order_book.auth_client.buy_levels = buy_levels
             order_book.auth_client.sell_levels = sell_levels
             order_book.auth_client.real_position = real_position

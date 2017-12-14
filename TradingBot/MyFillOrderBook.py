@@ -1,4 +1,5 @@
 import logging
+import config as config
 
 from gdax.authenticated_client import AuthenticatedClient
 from decimal import Decimal
@@ -10,7 +11,7 @@ logger = logging.getLogger('botLog')
 class MyFillOrderBook(AuthenticatedClient):
     """ This is where I store all my order and fill information """
 
-    def __init__(self, key, b64secret, passphrase):
+    def __init__(self, key, b64secret, passphrase, strategy_settings):
         super(MyFillOrderBook, self).__init__(key=key, b64secret=b64secret, passphrase=passphrase)
 
         logger.info("Entered into the MyFillOrderBook Class!")
@@ -24,12 +25,17 @@ class MyFillOrderBook(AuthenticatedClient):
         self.pnl = 0
         self.net_position = 0
         self.real_position = 0
+        self.strategy_name = strategy_settings.get('strategy_name')
+        self.order_size = strategy_settings.get('order_size')
+        self.fill_notifications = strategy_settings.get('fill_notifications')
+        self.place_notifications = strategy_settings.get('place_notifications')
         self.buy_levels = 0
         self.sell_levels = 0
         self.sent_buy_cancel = False
         self.sent_sell_cancel = False
         self.num_buy_cancel_rejects = 0
         self.num_sell_cancel_rejects = 0
+        self.current_trade_price = 0
 
     def place_my_limit_order(self, side, price, size='0.01'):
         """ I place the limit order here """
@@ -72,17 +78,19 @@ class MyFillOrderBook(AuthenticatedClient):
 
     def clean_message(self, message):
         if 'price' in message:
-            message['price'] = float(message['price'])
+            message['price'] = round(float(message['price']),2)
         if 'size' in message:
-            message['size'] = float(message['size'])
+            message['size'] = round(float(message['size']),8)
         return message
 
     def add_my_order_ack(self, message):
         """ Add Order Ack to Order Ack Book """
 
         if message['side'] == 'buy':
+            self.sent_buy_cancel=False
             self.my_buy_order_acks.append(self.clean_message(message))
         elif message['side'] == 'sell':
+            self.sent_sell_cancel=False
             self.my_sell_order_acks.append(self.clean_message(message))
         else:
             logger.critical("Message has a side other than buy or sell in add_my_order_ack.")
@@ -123,54 +131,37 @@ class MyFillOrderBook(AuthenticatedClient):
         """ Process the fill message and update positions and theos as necessary. """
 
         if message['side'] == 'buy':
-            if len(self.my_buy_orders) > 0:
-                if message['maker_order_id'] == self.my_buy_orders[0]['id']:
-                    fill_size = message['size']
-                    remaining_size = self.my_buy_orders[0]['size'] - fill_size
-                    if remaining_size > 0.1*self.order_size:
-                        self.pnl -= fill_size * message['price']
-                        self.buy_levels += fill_size
-                        self.real_position += fill_size
-                        self.net_position = round(self.real_position / self.order_size)
-                        self.my_buy_orders[0]['size'] = remaining_size
-                    else:
-                        self.pnl -= self.my_buy_orders[0]['size'] * message['price']
-                        self.buy_levels += self.my_buy_orders[0]['size']
-                        self.real_position += self.my_buy_orders[0]['size']
-                        self.net_position = round(self.real_position / self.order_size)
-                        self.my_buy_orders.clear()
-
-                    if self.fill_notifications:
-                        logger.warning("Sending Slack Notification:")
-                        slack.send_message_to_slack("{}: {} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.net_position, self.get_pnl()))
-
+            fill_size = message['size']
+            remaining_size = self.my_buy_orders[0]['size'] - fill_size
+            if remaining_size > 0.1*self.order_size:
+                self.pnl -= fill_size * message['price']
+                self.buy_levels += fill_size
+                self.real_position += fill_size
+                self.net_position = round(self.real_position / self.order_size)
+                self.my_buy_orders[0]['size'] = remaining_size
             else:
-                logger.critical("We received a buy fill with an order_id that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
+                self.pnl -= self.my_buy_orders[0]['size'] * message['price']
+                self.buy_levels += self.my_buy_orders[0]['size']
+                self.real_position += self.my_buy_orders[0]['size']
+                self.net_position = round(self.real_position / self.order_size)
+                self.my_buy_orders.clear()
+
         elif message['side'] == 'sell':
-            if len(self.my_sell_orders) > 0:
-                if message['maker_order_id'] == self.my_sell_orders[0]['id']:
-                    fill_size = message['size']
-                    remaining_size = self.my_sell_orders[0]['size'] - fill_size
-                    if remaining_size > 0.1*self.order_size:
-                        self.pnl += fill_size * message['price']
-                        self.sell_levels += fill_size
-                        self.real_position -= fill_size
-                        self.net_position = round(self.real_position / self.order_size)
-                        self.my_sell_orders[0]['size'] = remaining_size
-                    else:
-                        self.pnl += self.my_sell_orders[0]['size'] * message['price']
-                        self.sell_levels += self.my_sell_orders[0]['size']
-                        self.real_position -= self.my_sell_orders[0]['size']
-                        self.net_position = round(self.real_position / self.order_size)
-                        self.my_sell_orders.clear()
-
-
-                    if self.fill_notifications:
-                        logger.warning("Sending Slack Notification:")
-                        slack.send_message_to_slack("{}: {} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.net_position, self.get_pnl()))
-
+            fill_size = message['size']
+            remaining_size = self.my_sell_orders[0]['size'] - fill_size
+            if remaining_size > 0.1*self.order_size:
+                self.pnl += fill_size * message['price']
+                self.sell_levels += fill_size
+                self.real_position -= fill_size
+                self.net_position = round(self.real_position / self.order_size)
+                self.my_sell_orders[0]['size'] = remaining_size
             else:
-                logger.critical("We received a buy fill with an order_id that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
+                self.pnl += self.my_sell_orders[0]['size'] * message['price']
+                self.sell_levels += self.my_sell_orders[0]['size']
+                self.real_position -= self.my_sell_orders[0]['size']
+                self.net_position = round(self.real_position / self.order_size)
+                self.my_sell_orders.clear()
+
         else:
             logger.critical("Message Side is not either buy or sell in process fill message.")
             logger.critical(message)
@@ -255,7 +246,6 @@ class MyFillOrderBook(AuthenticatedClient):
                 #This is likely a major problem!
                 logger.critical("Order is not valid:" + self.my_sell_orders[0]['id'])
                 logger.critical(order_info)
-
 
     # def add_my_fill(self, fill):
     #     """ Add Fill to book """
