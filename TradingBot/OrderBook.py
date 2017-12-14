@@ -71,7 +71,7 @@ class OrderBookConsole(OrderBook):
         ask_depth = sum([a['size'] for a in asks])
 
         # Update Best Bid and Ask if there is a change
-        if self._bid == bid and self._ask == ask:# and self._bid_depth == bid_depth and self._ask_depth == ask_depth:
+        if self._bid == bid and self._ask == ask and bid>self.bid_theo and ask<self.ask_theo:# and self._bid_depth == bid_depth and self._ask_depth == ask_depth:
             # If there are no changes to the bid-ask spread since the last update, no need to print
             pass
         else:
@@ -300,11 +300,11 @@ class OrderBookConsole(OrderBook):
                                 logger.critical("Exchange Message Inner:")
                                 logger.critical(exchange_message)
                                 if 'message' in exchange_message:
+                                    self.auth_client.verify_orders()
                                     if exchange_message['message'] == "order not found":
                                         logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
                                     elif exchange_message['message'] == 'Order already done':
                                         logger.critical("Order is already canceled or filled.")
-                                        self.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
                                 else:
@@ -401,11 +401,11 @@ class OrderBookConsole(OrderBook):
                                 logger.critical("Exchange Message Inner:")
                                 logger.critical(exchange_message)
                                 if 'message' in exchange_message:
+                                    self.auth_client.verify_orders()
                                     if exchange_message['message'] == "order not found":
                                         logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
                                     elif exchange_message['message'] == 'Order already done':
                                         logger.critical("Order is already canceled or filled.")
-                                        self.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
                                 else:
