@@ -26,7 +26,6 @@ strategy_settings = {
 }
 
 
-
 # Logging Settings
 logger = logging.getLogger()
 logger.setLevel(logging.DEBUG)
@@ -39,14 +38,14 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Error file handler and set level to ERROR
-handler = logging.FileHandler(os.path.join("C:", "error_" + strategy_config.strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+handler = logging.FileHandler(os.path.join("C:", "error_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
 handler.setLevel(logging.WARNING)
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Debug file handler and set level to DEBUG
-handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_config.strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
 handler.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
@@ -62,7 +61,7 @@ for key, value in myKeys.items():
 logger.info("My user_id is: " + my_user_id)
 
 # Start Up OrderBook
-order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_config.strategy_settings)
+order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_settings)
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
@@ -83,7 +82,7 @@ while order_book.message_count < 1000000000000:
     long_sma = my_MA.add_value(order_book.trade_price)
 
     if order_book.num_order_rejects > 0:
-        logger.critical("Setting Rejects back to 0")
+        logger.warning("Setting Rejects back to 0")
         order_book.num_order_rejects = 0
 
     if long_sma != None:
@@ -102,7 +101,6 @@ while order_book.message_count < 1000000000000:
             order_book.valid_sma = True
             order_book.short_std = my_MA.get_weighted_std(5*60) * 2
             order_book.long_std = my_MA.get_weighted_std(30*60) / 2
-            #logger.info('RP:' + str(order_book.real_position) + ' pl:' + str(order_book.pnl) + ' NP:' + str(order_book.auth_client.net_position))
             logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tlSMA: {:.2f}\tsSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, long_sma, short_sma))
 
         else:
@@ -113,7 +111,7 @@ while order_book.message_count < 1000000000000:
 
     if order_book.stop and reset_not_triggered:
             reset_not_triggered = False
-            if strategy_config.strategy_settings.get('connection_notifications'):
+            if strategy_settings.get('connection_notifications'):
                 slack.send_message_to_slack("Connection has stopped. Restarting. Stop = True!")
                 logger.error("Connection has stopped. Restarting. Stop = True!")
 
@@ -128,7 +126,7 @@ while order_book.message_count < 1000000000000:
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
-            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_config.strategy_settings)
+            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_settings)
             order_book.auth_client.buy_levels = buy_levels
             order_book.auth_client.sell_levels = sell_levels
             order_book.auth_client.real_position = real_position
@@ -167,7 +165,7 @@ while order_book.message_count < 1000000000000:
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
-            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_config.strategy_settings)
+            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_settings)
             order_book.auth_client.buy_levels = buy_levels
             order_book.auth_client.sell_levels = sell_levels
             order_book.auth_client.real_position = real_position

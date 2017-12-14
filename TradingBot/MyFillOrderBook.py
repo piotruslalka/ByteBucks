@@ -56,7 +56,7 @@ class MyFillOrderBook(AuthenticatedClient):
             logging.critical("Invalid order side! " + side)
             return (False)
 
-        logger.warning(my_order)
+        logger.debug(my_order)
 
         # Check if limit order Rejected
         if 'status' in my_order:
@@ -105,8 +105,8 @@ class MyFillOrderBook(AuthenticatedClient):
                     self.my_buy_orders.clear()
                     self.sent_buy_cancel = False
                     self.num_buy_cancel_rejects = 0
-                    logger.critical("Setting Sent Buy Cancel to False")
-                    logger.warning(self.my_buy_orders)
+                    logger.debug("Setting Sent Buy Cancel to False")
+                    logger.debug(self.my_buy_orders)
                 else:
                     logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_buy_orders: " + self.my_buy_orders[0]['id'])
             else:
@@ -117,8 +117,8 @@ class MyFillOrderBook(AuthenticatedClient):
                     self.my_sell_orders.clear()
                     self.sent_sell_cancel = False
                     self.num_sell_cancel_rejects = 0
-                    logger.critical("Setting Sent Sell Cancel to False")
-                    logger.warning(self.my_sell_orders)
+                    logger.debug("Setting Sent Sell Cancel to False")
+                    logger.debug(self.my_sell_orders)
                 else:
                     logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_sell_orders: " + self.my_sell_orders[0]['id'])
             else:
