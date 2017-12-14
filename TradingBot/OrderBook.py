@@ -15,7 +15,7 @@ logger = logging.getLogger('botLog')
 class OrderBookConsole(OrderBook):
     ''' Logs real-time changes to the bid-ask spread to the console '''
 
-    def __init__(self, product_id=None, keys=None, strategy_settings=None):
+    def __init__(self, strategy_settings, product_id=None, keys=None):
         super(OrderBookConsole, self).__init__(product_id=product_id)
 
         logger.info("Entered into the OrderBook Class!")
@@ -71,7 +71,7 @@ class OrderBookConsole(OrderBook):
         ask_depth = sum([a['size'] for a in asks])
 
         # Update Best Bid and Ask if there is a change
-        if self._bid == bid and self._ask == ask and self._bid_depth == bid_depth and self._ask_depth == ask_depth:
+        if self._bid == bid and self._ask == ask:# and self._bid_depth == bid_depth and self._ask_depth == ask_depth:
             # If there are no changes to the bid-ask spread since the last update, no need to print
             pass
         else:
@@ -189,7 +189,7 @@ class OrderBookConsole(OrderBook):
                             self.auth_client.process_fill_message(message)
                             if self.fill_notifications:
                                 logger.warning("Sending Slack Notification:")
-                                slack.send_message_to_slack("{}: {} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.get_pnl()))
+                                slack.send_message_to_slack("{}: {} {:.4f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.get_pnl()))
                 elif message['side'] == 'sell':
                     if len(self.auth_client.my_sell_orders) > 0:
                         if message['maker_order_id'] == self.auth_client.my_sell_orders[0]['id']:
@@ -197,7 +197,7 @@ class OrderBookConsole(OrderBook):
                             self.auth_client.process_fill_message(message)
                             if self.fill_notifications:
                                 logger.warning("Sending Slack Notification:")
-                                slack.send_message_to_slack("{}: {} {:.3f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.get_pnl()))
+                                slack.send_message_to_slack("{}: {} {:.4f} @ {:.2f} {}. NP: {:.0f} PnL: {:.2f}".format(self.strategy_name, message['side'].title(), float(message['size']), float(message['price']), str(datetime.now().time()), self.auth_client.net_position, self.get_pnl()))
                 else:
                     logger.critical("We received a message that had something other than a buy or sell for the side...")
 
@@ -276,6 +276,8 @@ class OrderBookConsole(OrderBook):
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                    self.auth_client.sent_buy_cancel = True
+                                    logger.critical("Setting Sent Buy Cancel to True")
                                 elif exchange_message['message'] == 'Order already done':
                                     logger.critical("Order is already canceled or filled. Verifying orders now.")
                                     self.auth_client.verify_orders()
@@ -375,13 +377,15 @@ class OrderBookConsole(OrderBook):
                             if 'message' in exchange_message:
                                 if exchange_message['message'] == "order not found":
                                     logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                    self.auth_client.sent_sell_cancel = True
+                                    logger.critical("Setting Sent Sell Cancel to True.")
                                 elif exchange_message['message'] == 'Order already done':
                                     logger.critical("Order is already canceled or filled. Verifying orders now.")
                                     self.auth_client.verify_orders()
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
-                                logger.critical("Exchange messaage is our order_id. Cancel successful.")
+                                logger.critical("Exchange messaage is our order_id. Cancel sent successfully.")
                                 self.auth_client.sent_sell_cancel = True
                                 logger.critical("Setting Sent Sell Cancel to True.")
                         else:
@@ -405,7 +409,7 @@ class OrderBookConsole(OrderBook):
                                     else:
                                         logger.critical("Message is different than expected.")
                                 else:
-                                    logger.critical("Exchange Message is our order_ID. Cancel successful.")
+                                    logger.critical("Exchange Message is our order_ID. Cancel sent successfully.")
                                     self.auth_client.sent_sell_cancel = True
                                     logger.critical("Setting Sent Sell Cancel to True")
                                 logger.critical("Sent Sell Cancel should already be set to True...")

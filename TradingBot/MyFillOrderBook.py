@@ -78,17 +78,19 @@ class MyFillOrderBook(AuthenticatedClient):
 
     def clean_message(self, message):
         if 'price' in message:
-            message['price'] = float(message['price'])
+            message['price'] = round(float(message['price']),2)
         if 'size' in message:
-            message['size'] = float(message['size'])
+            message['size'] = round(float(message['size']),8)
         return message
 
     def add_my_order_ack(self, message):
         """ Add Order Ack to Order Ack Book """
 
         if message['side'] == 'buy':
+            self.sent_buy_cancel=False
             self.my_buy_order_acks.append(self.clean_message(message))
         elif message['side'] == 'sell':
+            self.sent_sell_cancel=False
             self.my_sell_order_acks.append(self.clean_message(message))
         else:
             logger.critical("Message has a side other than buy or sell in add_my_order_ack.")

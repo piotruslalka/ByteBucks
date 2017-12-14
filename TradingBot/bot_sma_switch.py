@@ -111,7 +111,7 @@ while order_book.message_count < 1000000000000:
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
-            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
+            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_config.strategy_settings)
             order_book.auth_client.buy_levels = buy_levels
             order_book.auth_client.sell_levels = sell_levels
             order_book.auth_client.real_position = real_position
@@ -150,7 +150,7 @@ while order_book.message_count < 1000000000000:
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
-            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys)
+            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_config.strategy_settings)
             order_book.auth_client.buy_levels = buy_levels
             order_book.auth_client.sell_levels = sell_levels
             order_book.auth_client.real_position = real_position
