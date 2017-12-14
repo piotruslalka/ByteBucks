@@ -35,6 +35,8 @@ class MyFillOrderBook(AuthenticatedClient):
         self.sent_sell_cancel = False
         self.num_buy_cancel_rejects = 0
         self.num_sell_cancel_rejects = 0
+        self.last_buy_price = 1000000
+        self.last_sell_price = 0
         self.current_trade_price = 0
 
     def place_my_limit_order(self, side, price, size='0.01'):
@@ -78,9 +80,9 @@ class MyFillOrderBook(AuthenticatedClient):
 
     def clean_message(self, message):
         if 'price' in message:
-            message['price'] = round(float(message['price']),2)
+            message['price'] = float(message['price'])
         if 'size' in message:
-            message['size'] = round(float(message['size']),8)
+            message['size'] = float(message['size'])
         return message
 
     def add_my_order_ack(self, message):
@@ -144,6 +146,8 @@ class MyFillOrderBook(AuthenticatedClient):
                 self.buy_levels += self.my_buy_orders[0]['size']
                 self.real_position += self.my_buy_orders[0]['size']
                 self.net_position = round(self.real_position / self.order_size)
+                self.last_buy_price = message['price']
+                self.last_sell_price = 0
                 self.my_buy_orders.clear()
 
         elif message['side'] == 'sell':
@@ -160,6 +164,8 @@ class MyFillOrderBook(AuthenticatedClient):
                 self.sell_levels += self.my_sell_orders[0]['size']
                 self.real_position -= self.my_sell_orders[0]['size']
                 self.net_position = round(self.real_position / self.order_size)
+                self.last_buy_price = 1000000
+                self.last_sell_price = message['price']
                 self.my_sell_orders.clear()
 
         else:
@@ -179,6 +185,8 @@ class MyFillOrderBook(AuthenticatedClient):
                         self.buy_levels += self.my_buy_orders[0]['size']
                         self.real_position += self.my_buy_orders[0]['size']
                         self.net_position = round(self.real_position / self.order_size)
+                        self.last_buy_price = self.my_buy_orders[0]['price']
+                        self.last_sell_price = 0
                         self.my_buy_orders.clear()
                     elif((remaining_size - round(self.my_buy_orders[0]['size'],8)) > 0.00000001):
                         logger.critical("Bid order is partially filled. (Missed Portion?)")
@@ -219,6 +227,8 @@ class MyFillOrderBook(AuthenticatedClient):
                         self.sell_levels += self.my_sell_orders[0]['size']
                         self.real_position -= self.my_sell_orders[0]['size']
                         self.net_position = round(self.real_position / self.order_size)
+                        self.last_buy_price = 1000000
+                        self.last_sell_price = self.my_sell_orders[0]['price']
                         self.my_sell_orders.clear()
                     elif((remaining_size - round(self.my_sell_orders[0]['size'],8)) > 0.00000001):
                         logger.critical("Bid order is partially filled. (Missed Portion?)")

@@ -17,6 +17,8 @@ strategy_settings = {
     'sell_initial_offset': 5,
     'buy_additional_offset': 1,
     'sell_additional_offset': 1,
+    'buy_max_initial_profit_target': 5000,
+    'sell_max_initial_profit_target': 5000,
     'max_long_position': 100,
     'max_short_position': 100,
     'fill_notifications': True,
@@ -141,7 +143,7 @@ while order_book.message_count < 1000000000000:
             order_book.start()
             timer_count = loop_count
 
-    if ((loop_count - timer_count) > 15):
+    if ((loop_count - timer_count) > 30):
         reset_not_triggered = True
         if(order_book.message_count == 0):
             logger.critical("GDAX connection problem. Pausing 60 seconds.")
