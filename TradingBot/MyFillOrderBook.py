@@ -64,7 +64,7 @@ class MyFillOrderBook(AuthenticatedClient):
                 logging.critical("ORDER REJECTED!")
                 return (False)
             else:
-                logging.info("Saving Order...")
+                logging.debug("Saving Order...")
                 if (side == "buy"):
                     self.my_buy_orders.append(self.clean_message(my_order))
                 else:
