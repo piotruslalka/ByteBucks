@@ -43,6 +43,8 @@ class OrderBookConsole(OrderBook):
         self.max_long_position = strategy_settings.get('max_long_position')
         self.max_short_position = strategy_settings.get('max_short_position')
         self.fill_notifications = strategy_settings.get('fill_notifications')
+        self.buy_max_initial_profit_target = strategy_settings.get('buy_max_initial_profit_target')
+        self.sell_max_initial_profit_target = strategy_settings.get('sell_max_initial_profit_target')
         self.buy_profit_target_multiplier = 1
         self.sell_profit_target_multiplier = 1
         self.bid_theo = 0
@@ -55,6 +57,7 @@ class OrderBookConsole(OrderBook):
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'], strategy_settings)
 
         logger.info("Settings Used:")
+        logger.info(strategy_settings)
         logger.info("Order Size: {}\tBuy Initial Offset: {}\tSell Initial Offset: {}\tBuy Additional Offset: {}\tSell Additional Offset: {}\tBuy Profit Target Mult: {}\tSell Profit Target Mult: {}".format(self.order_size, self.buy_initial_offset, self.sell_initial_offset, self.buy_additional_offset, self.sell_additional_offset, self.buy_profit_target_multiplier, self.sell_profit_target_multiplier))
 
     def on_message(self, message):
@@ -231,6 +234,8 @@ class OrderBookConsole(OrderBook):
             if self.auth_client.net_position > 2:
                 self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
                 self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) - (self.buy_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) + self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.auth_client.net_position)
+                if self.ask_theo > self.auth_client.last_buy_price + self.buy_max_initial_profit_target:
+                    self.ask_theo = self.auth_client.last_buy_price + self.buy_max_initial_profit_target
             else:
                 self.bid_theo = self.sma - self.buy_initial_offset * abs(self.auth_client.net_position + 1) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
                 self.ask_theo = self.sma
@@ -240,6 +245,8 @@ class OrderBookConsole(OrderBook):
             if self.auth_client.net_position < -2:
                 self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
                 self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) + (self.sell_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) - (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.auth_client.net_position))
+                if self.bid_theo < self.auth_client.last_sell_price - self.sell_max_initial_profit_target:
+                    self.bid_theo = self.auth_client.last_sell_price - self.sell_max_initial_profit_target
             else:
                 self.ask_theo = self.sma + self.sell_initial_offset * abs(self.auth_client.net_position - 1) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
                 self.bid_theo = self.sma
@@ -327,7 +334,7 @@ class OrderBookConsole(OrderBook):
                     order_price += self.min_tick
 
                 place_size = self.order_size
-                if (-self.min_order_size) > self.auth_client.real_position and self.auth_client.real_position > -2 * self.order_size:
+                if (-self.min_order_size) > self.auth_client.real_position and self.auth_client.real_position > -1.99 * self.order_size:
                     place_size = round(-self.auth_client.real_position,8)
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
@@ -427,7 +434,7 @@ class OrderBookConsole(OrderBook):
                     order_price -= self.min_tick
 
                 place_size = self.order_size
-                if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 2 * self.order_size:
+                if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 1.99 * self.order_size:
                     place_size = round(self.auth_client.real_position,8)
 
                 order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = place_size)

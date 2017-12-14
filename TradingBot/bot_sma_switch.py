@@ -17,6 +17,8 @@ strategy_settings = {
     'sell_initial_offset': 5,
     'buy_additional_offset': 1,
     'sell_additional_offset': 1,
+    'buy_max_initial_profit_target': 5000,
+    'sell_max_initial_profit_target': 5000,
     'max_long_position': 100,
     'max_short_position': 100,
     'fill_notifications': True,
