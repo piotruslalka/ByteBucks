@@ -12,13 +12,13 @@ from datetime import datetime
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
     'strategy_name': "bot_sma_switch",
-    'order_size': 0.001,
-    'buy_initial_offset': 5,
-    'sell_initial_offset': 5,
-    'buy_additional_offset': 1,
-    'sell_additional_offset': 1,
-    'buy_max_initial_profit_target': 5000,
-    'sell_max_initial_profit_target': 5000,
+    'order_size': 0.0001,
+    'buy_initial_offset': 50,
+    'sell_initial_offset': 50,
+    'buy_additional_offset': 0,
+    'sell_additional_offset': 0,
+    'buy_max_initial_profit_target': 50,
+    'sell_max_initial_profit_target': 50,
     'max_long_position': 100,
     'max_short_position': 100,
     'fill_notifications': True,
@@ -70,7 +70,7 @@ order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
 # Moving Average Initialization. Using 3 hour MA.
-my_MA = MovingAverageCalculation(period=3*60*60)
+my_MA = MovingAverageCalculation(period=12*60*60)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
@@ -89,7 +89,7 @@ while order_book.message_count < 1000000000000:
     if long_sma != None:
         if my_MA.count > 30:
             short_sma =  my_MA.get_sma(30*60)
-            if (order_book.auth_client.net_position > 19 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -19 and short_sma - long_sma > 5):
+            if (order_book.auth_client.net_position > 39 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -39 and short_sma - long_sma > 5):
                 use_long_sma = False
             elif abs(long_sma-short_sma) < 5:
                 use_long_sma = True
@@ -151,7 +151,7 @@ while order_book.message_count < 1000000000000:
         timer_count = loop_count
         logger.info("Checking order book connection. Message Count: "+str(order_book.message_count)+". Stale Count: " + str(stale_message_count))
         if order_book.message_count==stale_message_count:
-            if strategy_settings.strategy_settings.get('connection_notifications'):
+            if strategy_settings.get('connection_notifications'):
                 slack.send_message_to_slack("Connection has stopped. Restarting.")
                 logger.error("Connection has stopped. Restarting")
 

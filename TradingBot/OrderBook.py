@@ -74,7 +74,7 @@ class OrderBookConsole(OrderBook):
         ask_depth = sum([a['size'] for a in asks])
 
         # Update Best Bid and Ask if there is a change
-        if self._bid == bid and self._ask == ask and bid>self.bid_theo and ask<self.ask_theo:# and self._bid_depth == bid_depth and self._ask_depth == ask_depth:
+        if self._bid == bid and self._ask == ask and bid > self.bid_theo and ask < self.ask_theo:# and self._bid_depth == bid_depth and self._ask_depth == ask_depth:
             # If there are no changes to the bid-ask spread since the last update, no need to print
             pass
         else:
@@ -183,7 +183,7 @@ class OrderBookConsole(OrderBook):
                     logger.critical("Message Type == 'done' with a new message reason.")
 
             elif message['type'] == 'match':
-                # We recieved a fill message
+                # We received a fill message
                 if message['side'] == 'buy':
                     if len(self.auth_client.my_buy_orders) > 0:
                         if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['id']:
@@ -207,7 +207,7 @@ class OrderBookConsole(OrderBook):
                 # we received a change messages
                 logger.critical("Received a Change Message... We currently aren't doing anything with these, but logging them.")
             else:
-                logger.critical("Received a Message Type that we have not yet coded for. Mesage Type: " + message['type'])
+                logger.critical("Received a Message Type that we have not yet coded for. Message Type: " + message['type'])
 
     def on_bidask_update(self):
         # Since the bid/ask changed. Let's see if we need to place a trade.
@@ -234,8 +234,8 @@ class OrderBookConsole(OrderBook):
             if self.auth_client.net_position > 2:
                 self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
                 self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) - (self.buy_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) + self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.auth_client.net_position)
-                if self.ask_theo > self.auth_client.last_buy_price + self.buy_max_initial_profit_target:
-                    self.ask_theo = self.auth_client.last_buy_price + self.buy_max_initial_profit_target
+                #if self.ask_theo > self.auth_client.last_buy_price + self.buy_max_initial_profit_target:
+                #    self.ask_theo = self.auth_client.last_buy_price + self.buy_max_initial_profit_target
             else:
                 self.bid_theo = self.sma - self.buy_initial_offset * abs(self.auth_client.net_position + 1) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
                 self.ask_theo = self.sma
@@ -245,8 +245,8 @@ class OrderBookConsole(OrderBook):
             if self.auth_client.net_position < -2:
                 self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
                 self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) + (self.sell_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) - (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.auth_client.net_position))
-                if self.bid_theo < self.auth_client.last_sell_price - self.sell_max_initial_profit_target:
-                    self.bid_theo = self.auth_client.last_sell_price - self.sell_max_initial_profit_target
+                #if self.bid_theo < self.auth_client.last_sell_price - self.sell_max_initial_profit_target:
+                #    self.bid_theo = self.auth_client.last_sell_price - self.sell_max_initial_profit_target
             else:
                 self.ask_theo = self.sma + self.sell_initial_offset * abs(self.auth_client.net_position - 1) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
                 self.bid_theo = self.sma
@@ -259,62 +259,67 @@ class OrderBookConsole(OrderBook):
             # We have an order already on the exchange
 
             if (len(self.auth_client.my_buy_orders) == 1):
-                my_order_price = self.auth_client.my_buy_orders[0]['price']
 
                 if (self._bid < (self.bid_theo + (self.min_tick*500))):
                     # Keep Order
+                    my_order_price = self.auth_client.my_buy_orders[0]['price']
+                    cancel_profit_target = self.bid_theo < self.auth_client.last_sell_price - self.sell_max_initial_profit_target and self.auth_client.net_position < -2 and abs(self.auth_client.last_sell_price - self.buy_max_initial_profit_target - my_order_price)>0.1
                     #logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
-                    if (self._bid > (my_order_price + (self.min_tick*0))):
+                    if (self._bid > (my_order_price + (self.min_tick*0)) or cancel_profit_target):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
-                        #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
-                        # Cancel Current Order
-                        if (not self.auth_client.sent_buy_cancel):
-                            logger.warning("Cancelling Order")
-                            logger.debug(self.auth_client.my_buy_orders)
-                            exchange_message = None
-                            exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
-                            logger.debug("Exchange Message:")
-                            logger.debug(exchange_message)
-                            if 'message' in exchange_message:
-                                if exchange_message['message'] == "order not found":
-                                    logger.debug("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
-                                    self.auth_client.sent_buy_cancel = True
-                                    logger.debug("Setting Sent Buy Cancel to True")
-                                elif exchange_message['message'] == 'Order already done':
-                                    logger.critical("Order is already canceled or filled. Verifying orders now.")
-                                    self.auth_client.verify_orders()
-                                else:
-                                    logger.critical("Message is different than expected.")
-                            else:
-                                logger.debug("Exchange Message is our order_ID. Cancel successful.")
-                                self.auth_client.sent_buy_cancel = True
-                                logger.debug("Setting Sent Buy Cancel to True")
-                        else:
-                            logger.debug("Already sent buy cancel.")
-                            self.auth_client.num_buy_cancel_rejects += 1
-                            if self.auth_client.num_buy_cancel_rejects > 100:
-                                # The exchange must not have received the cancel request. Sending New Cancel request
-                                logger.critical("This really should not be happening.")
-                                logger.critical("Retrying to Cancel Order:")
-                                logger.critical(self.auth_client.my_buy_orders)
+                        if(abs(self.auth_client.last_sell_price - self.sell_max_initial_profit_target - my_order_price)>0.1 or cancel_profit_target):
+                            #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
+                            # Cancel Current Order
+                            if (not self.auth_client.sent_buy_cancel):
+                                logger.warning("Canceling Order")
+                                logger.debug(self.auth_client.my_buy_orders)
+                                exchange_message = None
                                 exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
-                                logger.critical("Exchange Message Inner:")
-                                logger.critical(exchange_message)
+                                logger.debug("Exchange Message:")
+                                logger.debug(exchange_message)
                                 if 'message' in exchange_message:
-                                    self.auth_client.verify_orders()
                                     if exchange_message['message'] == "order not found":
-                                        logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                        logger.debug("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                        self.auth_client.sent_buy_cancel = True
+                                        logger.debug("Setting Sent Buy Cancel to True")
                                     elif exchange_message['message'] == 'Order already done':
-                                        logger.critical("Order is already canceled or filled.")
+                                        logger.critical("Order is already canceled or filled. Verifying orders now.")
+                                        self.auth_client.verify_orders()
                                     else:
                                         logger.critical("Message is different than expected.")
                                 else:
-                                    logger.critical("Exchange Message is our order_ID. Cancel successful.")
+                                    logger.debug("Exchange Message is our order_ID. Cancel successful.")
                                     self.auth_client.sent_buy_cancel = True
-                                    logger.critical("Setting Sent Buy Cancel to True")
-                                logger.critical("Sent Buy Cancel should already be set to True...")
-                                logger.critical("Resetting cancel rejects.")
-                                self.auth_client.num_buy_cancel_rejects = 0
+                                    logger.debug("Setting Sent Buy Cancel to True")
+                            else:
+                                logger.debug("Already sent buy cancel.")
+                                self.auth_client.num_buy_cancel_rejects += 1
+                                if self.auth_client.num_buy_cancel_rejects > 100:
+                                    # The exchange must not have received the cancel request. Sending New Cancel request
+                                    logger.critical("This really should not be happening.")
+                                    logger.critical("Retrying to Cancel Order:")
+                                    logger.critical(self.auth_client.my_buy_orders)
+                                    exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                                    logger.critical("Exchange Message Inner:")
+                                    logger.critical(exchange_message)
+                                    if 'message' in exchange_message:
+                                        self.auth_client.verify_orders()
+                                        if exchange_message['message'] == "order not found":
+                                            logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                        elif exchange_message['message'] == 'Order already done':
+                                            logger.critical("Order is already canceled or filled.")
+                                        else:
+                                            logger.critical("Message is different than expected.")
+                                    else:
+                                        logger.critical("Exchange Message is our order_ID. Cancel successful.")
+                                        self.auth_client.sent_buy_cancel = True
+                                        logger.critical("Setting Sent Buy Cancel to True")
+                                    logger.critical("Sent Buy Cancel should already be set to True...")
+                                    logger.critical("Resetting cancel rejects.")
+                                    self.auth_client.num_buy_cancel_rejects = 0
+                        else:
+                            # Keep Order
+                            logger.debug("Bid is a profit target. Do not remove original order.")
                     else:
                         # Keep Order
                         logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
@@ -327,32 +332,55 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We do not currently have any active orders.
-            if ((self._bid + self.min_tick) < self.bid_theo and self.auth_client.net_position < self.max_long_position):
-                # We want to place a Buy Order
-                order_price = self._bid
-                if self._spread > .01:
-                    order_price += self.min_tick
-
-                place_size = self.order_size
-                if (-self.min_order_size) > self.auth_client.real_position and self.auth_client.real_position > -1.99 * self.order_size:
-                    place_size = round(-self.auth_client.real_position,8)
-
-                order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
-                logger.info("Bid is lower than Bid Theo, we are placing a Buy Order of: " + str(place_size) + " at:" + str(order_price) + "\t"
-                                + "Bid: " + str(self._bid) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
-
-                if order_successful:
-                    #if config.place_notifications:
-                    #    slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._bid, self._spread, str(datetime.now())))
-
-                    #self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
-                    logger.warning("Order successfully placed.")
-                    self.num_order_rejects = 0
-                else:
-                    # Order did not go through... Try again.
-                    logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
-                    logger.debug("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
-                    self.num_order_rejects += 1
+            if self.auth_client.net_position < self.max_long_position:
+                if ((self._bid + self.min_tick) < self.bid_theo):
+                    # We want to place a Buy Order
+                    order_price = self._bid
+                    if self._spread > .01:
+                        order_price += self.min_tick
+    
+                    place_size = self.order_size
+                    if (-self.min_order_size) > self.auth_client.real_position and self.auth_client.real_position > -1.99 * self.order_size:
+                        place_size = round(-self.auth_client.real_position,8)
+    
+                    order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
+                    logger.info("Bid is lower than Bid Theo, we are placing a Buy Order of: " + str(place_size) + " at:" + str(order_price) + "\t"
+                                    + "Bid: " + str(self._bid) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
+    
+                    if order_successful:
+                        #if config.place_notifications:
+                        #    slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._bid, self._spread, str(datetime.now())))
+    
+                        #self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
+                        logger.warning("Order successfully placed.")
+                        self.num_order_rejects = 0
+                    else:
+                        # Order did not go through... Try again.
+                        logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
+                        logger.debug("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                        self.num_order_rejects += 1
+                elif (self.bid_theo < self.auth_client.last_sell_price - self.sell_max_initial_profit_target and self.auth_client.net_position < -2):
+                    # We want to place a Buy Order
+                    order_price = round(self.auth_client.last_sell_price - self.sell_max_initial_profit_target,2)
+                    place_size = self.order_size
+                    order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = place_size)
+                    logger.info("Bid is lower than Bid Theo, we are placing a Buy Order of: " + str(place_size) + " at:" + str(order_price) + "\t"
+                                    + "Bid: " + str(self._bid) + "\tBid Theo: " + str(self.bid_theo) + "\tSpread: " + str(self._spread))
+    
+                    if order_successful:
+                        #if config.place_notifications:
+                        #    slack.send_message_to_slack("Placing - Buy {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._bid, self._spread, str(datetime.now())))
+    
+                        #self.pnl -= Decimal(self._bid)*Decimal(self.order_size)
+                        logger.warning("Order successfully placed.")
+                        self.num_order_rejects = 0
+                    else:
+                        # Order did not go through... Try again.
+                        logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
+                        logger.debug("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                        self.num_order_rejects += 1
+            else:
+                logger.info("Above max position. Not placing an order")
 
         # Check to see if we already placed an order
         if (len(self.auth_client.my_sell_orders) > 0):
@@ -360,11 +388,12 @@ class OrderBookConsole(OrderBook):
 
             if (len(self.auth_client.my_sell_orders) == 1):
                 my_order_price = self.auth_client.my_sell_orders[0]['price']
+                cancel_profit_target = self.ask_theo > self.auth_client.last_buy_price + self.buy_max_initial_profit_target and self.auth_client.net_position > 2 and abs(self.auth_client.last_buy_price + self.buy_max_initial_profit_target - my_order_price)>0.1
 
-                if (self._ask > (self.ask_theo - (self.min_tick * 500))):
+                if (self._ask > (self.ask_theo - (self.min_tick * 500)) or cancel_profit_target):
                     # Keep Order
                     #logger.debug("Ask: " + str(self._ask) + " should be greater than " + str(self.ask_theo - (self.min_tick*10)))
-                    if (self._ask < (my_order_price - (self.min_tick * 0))):
+                    if (self._ask < (my_order_price - (self.min_tick * 0)) or cancel_profit_target):
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
                         #logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
                         # Cancel Current Order
@@ -386,7 +415,7 @@ class OrderBookConsole(OrderBook):
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
-                                logger.debug("Exchange messaage is our order_id. Cancel sent successfully.")
+                                logger.debug("Exchange message is our order_id. Cancel sent successfully.")
                                 self.auth_client.sent_sell_cancel = True
                                 logger.debug("Setting Sent Sell Cancel to True.")
                         else:
@@ -423,35 +452,55 @@ class OrderBookConsole(OrderBook):
                     # Remove Order? No Need to... lets just leave it out there..
                     logger.debug("No need to remove order because the ask is now more than 100 ticks from the Ask Theo.")
             else:
-                logger.critical("We have more than just one order in the order book. Somethin is wrong...")
+                logger.critical("We have more than just one order in the order book. Something is wrong...")
 
         else:
             # We do not currently have any active orders.
-            if ((self._ask - self.min_tick) > self.ask_theo and self.auth_client.net_position > -self.max_short_position):
-                # We want to place a Sell Order
-                order_price = self._ask
-                if self._spread > .01:
-                    order_price -= self.min_tick
-
-                place_size = self.order_size
-                if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 1.99 * self.order_size:
-                    place_size = round(self.auth_client.real_position,8)
-
-                order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = place_size)
-                logger.info("Ask is Higher than Ask Theo, we are placing a Sell order of: " + str(place_size) + " at:" + str(self._ask - self.min_tick) + "\t"
-                              + "Ask: " + str(self._ask) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
-                if order_successful:
-                    # if config.place_notifications:
-                    #     slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._ask, self._spread, str(datetime.now())))
-                    #
-                    #     self.pnl += Decimal(self._ask)*Decimal(self.order_size)
-                    logger.warning("Order successfully placed.")
-                    self.num_order_rejects = 0
-                else:
-                    # Order did not go through... Try again.
-                    logger.critical("Order Rejected... Trying again")
-                    logger.debug("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
-                    self.num_order_rejects = self.num_order_rejects + 1
+            if (self.auth_client.net_position > -self.max_short_position):
+                if ((self._ask - self.min_tick) > self.ask_theo):
+                    # We want to place a Sell Order
+                    order_price = self._ask
+                    if self._spread > .01:
+                        order_price -= self.min_tick
+    
+                    place_size = self.order_size
+                    if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 1.99 * self.order_size:
+                        place_size = round(self.auth_client.real_position,8)
+    
+                    order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = place_size)
+                    logger.info("Ask is Higher than Ask Theo, we are placing a Sell order of: " + str(place_size) + " at:" + str(self._ask - self.min_tick) + "\t"
+                                  + "Ask: " + str(self._ask) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                    if order_successful:
+                        # if config.place_notifications:
+                        #     slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._ask, self._spread, str(datetime.now())))
+                        #
+                        #     self.pnl += Decimal(self._ask)*Decimal(self.order_size)
+                        logger.warning("Order successfully placed.")
+                        self.num_order_rejects = 0
+                    else:
+                        # Order did not go through... Try again.
+                        logger.critical("Order Rejected... Trying again")
+                        logger.debug("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                        self.num_order_rejects = self.num_order_rejects + 1
+                elif (self.ask_theo > self.auth_client.last_buy_price + self.buy_max_initial_profit_target and self.auth_client.net_position > 2):
+                    # We want to place a Sell Order
+                    order_price = self.auth_client.last_buy_price + self.buy_max_initial_profit_target
+                    place_size = self.order_size
+                    order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = place_size)
+                    logger.info("Ask is Higher than Ask Theo, we are placing a Sell order of: " + str(place_size) + " at:" + str(self._ask - self.min_tick) + "\t"
+                                  + "Ask: " + str(self._ask) + "\tAsk Theo: " + str(self.ask_theo) + "\tSpread: " + str(self._spread))
+                    if order_successful:
+                        # if config.place_notifications:
+                        #     slack.send_message_to_slack("Placing - Sell {:.3f} @ {}\tSpread: {:.2f}\t{}".format(self.order_size, self._ask, self._spread, str(datetime.now())))
+                        #
+                        #     self.pnl += Decimal(self._ask)*Decimal(self.order_size)
+                        logger.warning("Order successfully placed.")
+                        self.num_order_rejects = 0
+                    else:
+                        # Order did not go through... Try again.
+                        logger.critical("Order Rejected... Trying again")
+                        logger.debug("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
+                        self.num_order_rejects = self.num_order_rejects + 1
 
 
     def get_pnl(self):
