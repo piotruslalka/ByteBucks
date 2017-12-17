@@ -25,6 +25,7 @@ class MyFillOrderBook(AuthenticatedClient):
         self.pnl = 0
         self.net_position = 0
         self.real_position = 0
+        self.product_id = strategy_settings.get('product_id')
         self.strategy_name = strategy_settings.get('strategy_name')
         self.order_size = strategy_settings.get('order_size')
         self.fill_notifications = strategy_settings.get('fill_notifications')
@@ -50,9 +51,9 @@ class MyFillOrderBook(AuthenticatedClient):
         logger.warning("We are placing an Order at:" + str_price)
 
         if side=='buy':
-            my_order = self.buy(product_id='BTC-USD', price=str_price, size=str_size, time_in_force='GTC', post_only=True)
+            my_order = self.buy(product_id=self.product_id, price=str_price, size=str_size, time_in_force='GTC', post_only=True)
         elif side=='sell':
-            my_order = self.sell(product_id='BTC-USD', price=str_price, size=str_size, time_in_force='GTC', post_only=True)
+            my_order = self.sell(product_id=self.product_id, price=str_price, size=str_size, time_in_force='GTC', post_only=True)
         else:
             #Sent order place without side!
             logging.critical("Invalid order side! " + side)
