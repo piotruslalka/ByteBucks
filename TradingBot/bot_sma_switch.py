@@ -11,6 +11,7 @@ from datetime import datetime
 
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
+    'product_id': 'BTC-USD',
     'strategy_name': "bot_sma_switch",
     'order_size': 0.0001,
     'buy_initial_offset': 50,
@@ -21,6 +22,13 @@ strategy_settings = {
     'sell_max_initial_profit_target': 50,
     'max_long_position': 100,
     'max_short_position': 100,
+    'sma_swap_trigger_level': 100,
+    'sma_long_duration': 12*60,
+    'sma_short_duration': 30,
+    'std_long_duration': 30,
+    'std_short_duration': 5,
+    'std_long_multiplier': 0.5,
+    'std_short_multiplier': 2,
     'fill_notifications': True,
     'place_notifications': False,
     'connection_notifications': True,
@@ -62,7 +70,7 @@ for key, value in myKeys.items():
 logger.info("My user_id is: " + my_user_id)
 
 # Start Up OrderBook
-order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_settings)
+order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
@@ -70,7 +78,7 @@ order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
 # Moving Average Initialization. Using 3 hour MA.
-my_MA = MovingAverageCalculation(period=12*60*60)
+my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration')*60)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
@@ -88,8 +96,8 @@ while order_book.message_count < 1000000000000:
 
     if long_sma != None:
         if my_MA.count > 30:
-            short_sma =  my_MA.get_sma(30*60)
-            if (order_book.auth_client.net_position > 39 and short_sma - long_sma < -5) or (order_book.auth_client.net_position < -39 and short_sma - long_sma > 5):
+            short_sma =  my_MA.get_sma(strategy_settings.get('sma_short_duration')*60)
+            if (order_book.auth_client.net_position >= strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma < -5) or (order_book.auth_client.net_position <= -strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma > 5):
                 use_long_sma = False
             elif abs(long_sma-short_sma) < 5:
                 use_long_sma = True
@@ -100,8 +108,8 @@ while order_book.message_count < 1000000000000:
                 order_book.sma = short_sma
 
             order_book.valid_sma = True
-            order_book.short_std = my_MA.get_weighted_std(5*60) * 2
-            order_book.long_std = my_MA.get_weighted_std(30*60) / 2
+            order_book.short_std = my_MA.get_weighted_std(strategy_settings.get('std_short_duration')*60) * strategy_settings.get('std_short_multiplier')
+            order_book.long_std = my_MA.get_weighted_std(strategy_settings.get('std_long_duration')*60) * strategy_settings.get('std_long_multiplier')
             logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tlSMA: {:.2f}\tsSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, long_sma, short_sma))
 
         else:
@@ -127,7 +135,7 @@ while order_book.message_count < 1000000000000:
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
-            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_settings)
+            order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
             order_book.auth_client.buy_levels = buy_levels
             order_book.auth_client.sell_levels = sell_levels
             order_book.auth_client.real_position = real_position
@@ -166,7 +174,7 @@ while order_book.message_count < 1000000000000:
             order_book.close()
 
             # Populate New Order book with previously saved critical info.
-            order_book = OrderBookConsole(product_id='BTC-USD', keys=myKeys, strategy_settings = strategy_settings)
+            order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
             order_book.auth_client.buy_levels = buy_levels
             order_book.auth_client.sell_levels = sell_levels
             order_book.auth_client.real_position = real_position
