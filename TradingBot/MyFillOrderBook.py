@@ -215,6 +215,7 @@ class MyFillOrderBook(AuthenticatedClient):
                 #This is likely a major problem!
                 logger.critical("Order is not valid:" + self.my_buy_orders[0]['id'])
                 logger.critical(order_info)
+                self.my_buy_orders.clear()
 
         if (len(self.my_sell_orders) >= 1):
             order_info = self.get_order(self.my_sell_orders[0]['id'])
@@ -257,6 +258,7 @@ class MyFillOrderBook(AuthenticatedClient):
                 #This is likely a major problem!
                 logger.critical("Order is not valid:" + self.my_sell_orders[0]['id'])
                 logger.critical(order_info)
+                self.my_sell_orders.clear()
 
     # def add_my_fill(self, fill):
     #     """ Add Fill to book """

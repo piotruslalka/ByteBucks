@@ -69,16 +69,26 @@ for key, value in myKeys.items():
     logger.info(key + ": " + value)
 logger.info("My user_id is: " + my_user_id)
 
+# Moving Average Initialization. 
+my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration')*60)
+#current_SMA = 19425
+#my_MA.add_value(starting_SMA)
+
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
+#order_book.auth_client.buy_levels = 0.89
+#order_book.auth_client.net_position = 15
+#current_price = 19100
+#current_pnl = -25.5
+#order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position 
+#order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
+#order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
 order_book.api_passphrase = myKeys['passphrase']
 order_book.start()
 
-# Moving Average Initialization. Using 3 hour MA.
-my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration')*60)
 status_message_count = 0
 stale_message_count = -1
 loop_count = 0
