@@ -225,31 +225,29 @@ class OrderBookConsole(OrderBook):
         std_offset = max(self.short_std, self.long_std)
 
         if self.auth_client.net_position == 0:
-            # We are flat
-            self.bid_theo = self.sma - self.buy_initial_offset - std_offset
-            self.ask_theo = self.sma + self.sell_initial_offset + std_offset
-
+            # We are flat.
+            self.bid_theo = self.sma - self.buy_initial_offset
+            self.ask_theo = self.sma + self.sell_initial_offset
         elif self.auth_client.net_position > 0:
-            # We are long
-            if self.auth_client.net_position > 2:
-                self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
-                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) - (self.buy_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) + self.buy_initial_offset * self.buy_profit_target_multiplier / sqrt(self.auth_client.net_position)
-                if self.ask_theo > self.auth_client.last_buy_price + self.buy_max_initial_profit_target:
-                    self.ask_theo = self.auth_client.last_buy_price + self.buy_max_initial_profit_target
+            # We are long.
+            if self._bid < self.sma_short_duration:
+                self.bid_theo = self.sma - 10000
+                self.ask_theo = self.sma_short_duration
             else:
-                self.bid_theo = self.sma - self.buy_initial_offset * abs(self.auth_client.net_position + 1) - (self.buy_additional_offset * ((self.auth_client.net_position + 1) * (self.auth_client.net_position + 1))) - std_offset
-                self.ask_theo = self.sma
-
+                self.bid_theo = self.sma - 10000
+                self.ask_theo = self.sma + 10000
+        elif self.auth_client.net_position < 0:
+            # we are short.
+            if self._ask > self.sma_short_duration:
+                self.bid_theo = self.sma_short_duration
+                self.ask_theo = self.sma + 10000
+            else:
+                self.bid_theo = self.sma - 10000
+                self.ask_theo = self.sma + 10000
         else:
-            # We are short
-            if self.auth_client.net_position < -2:
-                self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
-                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) + (self.sell_additional_offset * ((self.auth_client.net_position) * (self.auth_client.net_position))) - (self.sell_initial_offset * self.sell_profit_target_multiplier / sqrt(-self.auth_client.net_position))
-                if self.bid_theo < self.auth_client.last_sell_price - self.sell_max_initial_profit_target:
-                    self.bid_theo = self.auth_client.last_sell_price - self.sell_max_initial_profit_target
-            else:
-                self.ask_theo = self.sma + self.sell_initial_offset * abs(self.auth_client.net_position - 1) + (self.sell_additional_offset * ((self.auth_client.net_position - 1) * (self.auth_client.net_position - 1))) + std_offset
-                self.bid_theo = self.sma
+            # We have a problem
+            logger.critical("We have a net position that is possibly unknown? Big error!")
+
 
     def check_if_action_needed(self):
         # Check to see if we want to place any orders
