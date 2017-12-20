@@ -13,9 +13,9 @@ from datetime import datetime
 strategy_settings = {
     'product_id': 'BTC-USD',
     'strategy_name': "bot_sma_switch",
-    'order_size': 0.05,
-    'buy_initial_offset': 100,
-    'sell_initial_offset': 100000,
+    'order_size': 0.01,
+    'buy_initial_offset': 50,
+    'sell_initial_offset': 50,
     'buy_additional_offset': 0,
     'sell_additional_offset': 0,
     'buy_max_initial_profit_target': 5000,
@@ -23,8 +23,8 @@ strategy_settings = {
     'max_long_position': 100,
     'max_short_position': 100,
     'sma_swap_trigger_level': 100,
-    'sma_long_duration': 4 * 60,
-    'sma_short_duration': 0.25 * 60,
+    'sma_long_duration': (1/12) * 60,
+    'sma_short_duration': 5 * 60,
     'std_long_duration': 30,
     'std_short_duration': 5,
     'std_long_multiplier': 0.5,
@@ -104,23 +104,21 @@ while order_book.message_count < 1000000000000:
         logger.warning("Setting Rejects back to 0")
         order_book.num_order_rejects = 0
 
+    if order_book.reset_sma == True:
+        # Reset SMAs.
+        my_MA.reset_smas()
+        order_book.reset_sma = False
+
     if long_sma != None:
         if my_MA.count > 30:
-            short_sma =  my_MA.get_sma(strategy_settings.get('sma_short_duration')*60)
-            if (order_book.auth_client.net_position >= strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma < -5) or (order_book.auth_client.net_position <= -strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma > 5):
-                use_long_sma = False
-            elif abs(long_sma-short_sma) < 5:
-                use_long_sma = True
-
-            if use_long_sma:
-                order_book.sma = long_sma
-            else:
-                order_book.sma = short_sma
+            short_sma =  my_MA.get_sma(strategy_settings.get('sma_short_duration'))
+            order_book.long_sma = long_sma
+            order_book.short_sma = short_sma
 
             order_book.valid_sma = True
             order_book.short_std = my_MA.get_weighted_std(strategy_settings.get('std_short_duration')*60) * strategy_settings.get('std_short_multiplier')
             order_book.long_std = my_MA.get_weighted_std(strategy_settings.get('std_long_duration')*60) * strategy_settings.get('std_long_multiplier')
-            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tlSMA: {:.2f}\tsSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, long_sma, short_sma))
+            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\tlSMA: {:.2f}\tsSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.bid_theo, order_book.ask_theo, long_sma, short_sma))
 
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")

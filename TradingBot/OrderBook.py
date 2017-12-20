@@ -30,7 +30,8 @@ class OrderBookConsole(OrderBook):
         self.trade_size = None
         self.trade_side = None
         self.message_count = 0
-        self.sma = None
+        self.short_sma = None
+        self.long_sma = None
         self.valid_sma = False
         self.short_std = 0
         self.long_std = 0
@@ -55,6 +56,8 @@ class OrderBookConsole(OrderBook):
         self.min_order_size = round(0.0001, 4)
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'], strategy_settings)
+        self.reset_sma = False
+        self.had_position = False
 
         logger.info("Settings Used:")
         logger.info(strategy_settings)
@@ -226,24 +229,44 @@ class OrderBookConsole(OrderBook):
 
         if self.auth_client.net_position == 0:
             # We are flat.
-            self.bid_theo = self.sma - self.buy_initial_offset
-            self.ask_theo = self.sma + self.sell_initial_offset
+            if self.had_position == True:
+                # Reset smas.
+                self.reset_sma = True
+
+            if self.reset_sma == False:
+                if self._ask < self.long_sma - 100:
+                    # Place a sell order.
+                    self.bid_theo = self.long_sma - 10000
+                    self.ask_theo = self.long_sma - 10000
+                elif self._bid > self.long_sma + 100:
+                    # Place a buy order.
+                    self.bid_theo = self.long_sma + 10000
+                    self.ask_theo = self.long_sma + 10000
+                else:
+                    self.bid_theo = self.long_sma - 10000
+                    self.ask_theo = self.long_sma + 10000
+            else:
+                self.bid_theo = self.long_sma - 10000
+                self.ask_theo = self.long_sma + 10000
+
         elif self.auth_client.net_position > 0:
             # We are long.
-            if self._bid < self.sma_short_duration:
-                self.bid_theo = self.sma - 10000
-                self.ask_theo = self.sma_short_duration
+            self.had_position = True
+            if self._ask < self.short_sma:
+                self.bid_theo = self.long_sma - 10000
+                self.ask_theo = self.long_sma - 10000
             else:
-                self.bid_theo = self.sma - 10000
-                self.ask_theo = self.sma + 10000
+                self.bid_theo = self.long_sma - 10000
+                self.ask_theo = self.long_sma + 10000
         elif self.auth_client.net_position < 0:
             # we are short.
-            if self._ask > self.sma_short_duration:
-                self.bid_theo = self.sma_short_duration
-                self.ask_theo = self.sma + 10000
+            self.had_position = True
+            if self._bid > self.short_sma:
+                self.bid_theo = self.long_sma + 10000
+                self.ask_theo = self.long_sma + 10000
             else:
-                self.bid_theo = self.sma - 10000
-                self.ask_theo = self.sma + 10000
+                self.bid_theo = self.long_sma - 10000
+                self.ask_theo = self.long_sma + 10000
         else:
             # We have a problem
             logger.critical("We have a net position that is possibly unknown? Big error!")
@@ -259,73 +282,68 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_buy_orders) == 1):
                 my_order_price = self.auth_client.my_buy_orders[0]['price']
 
-                if (self._bid < (self.bid_theo + (self.min_tick*500))):
-                    # Keep Order
-                    #logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
-                    if (self._bid > (my_order_price + (self.min_tick*0))):
-                        # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
-                        #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
-                        # Cancel Current Order
-                        if (not self.auth_client.sent_buy_cancel):
-                            logger.warning("Cancelling Order")
-                            logger.debug(self.auth_client.my_buy_orders)
-                            exchange_message = None
+                if (self._bid > my_order_price):
+                    # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
+                    #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
+                    # Cancel Current Order
+                    if (not self.auth_client.sent_buy_cancel):
+                        logger.warning("Cancelling Order")
+                        logger.debug(self.auth_client.my_buy_orders)
+                        exchange_message = None
+                        exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
+                        logger.debug("Exchange Message:")
+                        logger.debug(exchange_message)
+                        if 'message' in exchange_message:
+                            if exchange_message['message'] == "order not found":
+                                logger.debug("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                self.auth_client.sent_buy_cancel = True
+                                logger.debug("Setting Sent Buy Cancel to True")
+                            elif exchange_message['message'] == 'Order already done':
+                                logger.critical("Order is already canceled or filled. Verifying orders now.")
+                                self.auth_client.verify_orders()
+                            else:
+                                logger.critical("Message is different than expected.")
+                        else:
+                            logger.debug("Exchange Message is our order_ID. Cancel successful.")
+                            self.auth_client.sent_buy_cancel = True
+                            logger.debug("Setting Sent Buy Cancel to True")
+                    else:
+                        logger.debug("Already sent buy cancel.")
+                        self.auth_client.num_buy_cancel_rejects += 1
+                        if self.auth_client.num_buy_cancel_rejects > 100:
+                            # The exchange must not have received the cancel request. Sending New Cancel request
+                            logger.critical("This really should not be happening.")
+                            logger.critical("Retrying to Cancel Order:")
+                            logger.critical(self.auth_client.my_buy_orders)
                             exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
-                            logger.debug("Exchange Message:")
-                            logger.debug(exchange_message)
+                            logger.critical("Exchange Message Inner:")
+                            logger.critical(exchange_message)
                             if 'message' in exchange_message:
+                                self.auth_client.verify_orders()
                                 if exchange_message['message'] == "order not found":
-                                    logger.debug("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
-                                    self.auth_client.sent_buy_cancel = True
-                                    logger.debug("Setting Sent Buy Cancel to True")
+                                    logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
                                 elif exchange_message['message'] == 'Order already done':
-                                    logger.critical("Order is already canceled or filled. Verifying orders now.")
-                                    self.auth_client.verify_orders()
+                                    logger.critical("Order is already canceled or filled.")
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
-                                logger.debug("Exchange Message is our order_ID. Cancel successful.")
+                                logger.critical("Exchange Message is our order_ID. Cancel successful.")
                                 self.auth_client.sent_buy_cancel = True
-                                logger.debug("Setting Sent Buy Cancel to True")
-                        else:
-                            logger.debug("Already sent buy cancel.")
-                            self.auth_client.num_buy_cancel_rejects += 1
-                            if self.auth_client.num_buy_cancel_rejects > 100:
-                                # The exchange must not have received the cancel request. Sending New Cancel request
-                                logger.critical("This really should not be happening.")
-                                logger.critical("Retrying to Cancel Order:")
-                                logger.critical(self.auth_client.my_buy_orders)
-                                exchange_message = self.auth_client.cancel_order(self.auth_client.my_buy_orders[0]['id'])
-                                logger.critical("Exchange Message Inner:")
-                                logger.critical(exchange_message)
-                                if 'message' in exchange_message:
-                                    self.auth_client.verify_orders()
-                                    if exchange_message['message'] == "order not found":
-                                        logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
-                                    elif exchange_message['message'] == 'Order already done':
-                                        logger.critical("Order is already canceled or filled.")
-                                    else:
-                                        logger.critical("Message is different than expected.")
-                                else:
-                                    logger.critical("Exchange Message is our order_ID. Cancel successful.")
-                                    self.auth_client.sent_buy_cancel = True
-                                    logger.critical("Setting Sent Buy Cancel to True")
-                                logger.critical("Sent Buy Cancel should already be set to True...")
-                                logger.critical("Resetting cancel rejects.")
-                                self.auth_client.num_buy_cancel_rejects = 0
-                    else:
-                        # Keep Order
-                        logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
+                                logger.critical("Setting Sent Buy Cancel to True")
+                            logger.critical("Sent Buy Cancel should already be set to True...")
+                            logger.critical("Resetting cancel rejects.")
+                            self.auth_client.num_buy_cancel_rejects = 0
                 else:
-                    # Remove Order? No need to.. lets just leave it out there...
-                    logger.debug("No need to remove order because the bid is now more than 100 ticks from the Bid Theo.")
+                    # Keep Order
+                    logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
+
 
             else:
                 logger.critical("We have more than just one order in the order book. Something is wrong...")
 
         else:
             # We do not currently have any active orders.
-            if ((self._bid + self.min_tick) < self.bid_theo and self.auth_client.net_position < self.max_long_position):
+            if (self._bid < self.bid_theo):
                 # We want to place a Buy Order
                 order_price = self._bid
                 if self._spread > .01:
@@ -359,67 +377,63 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_sell_orders) == 1):
                 my_order_price = self.auth_client.my_sell_orders[0]['price']
 
-                if (self._ask > (self.ask_theo - (self.min_tick * 500))):
-                    # Keep Order
-                    #logger.debug("Ask: " + str(self._ask) + " should be greater than " + str(self.ask_theo - (self.min_tick*10)))
-                    if (self._ask < (my_order_price - (self.min_tick * 0))):
-                        # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
-                        #logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
-                        # Cancel Current Order
-                        if (not self.auth_client.sent_sell_cancel):
-                            logger.warning("Cancelling Order")
-                            logger.debug(self.auth_client.my_sell_orders)
-                            exchange_message = None
+
+                if (self._ask < my_order_price):
+                    # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
+                    #logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
+                    # Cancel Current Order
+                    if (not self.auth_client.sent_sell_cancel):
+                        logger.warning("Cancelling Order")
+                        logger.debug(self.auth_client.my_sell_orders)
+                        exchange_message = None
+                        exchange_message = self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
+                        logger.debug("Exchange Message:")
+                        logger.debug(exchange_message)
+                        if 'message' in exchange_message:
+                            if exchange_message['message'] == "order not found":
+                                logger.debug("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
+                                self.auth_client.sent_sell_cancel = True
+                                logger.debug("Setting Sent Sell Cancel to True.")
+                            elif exchange_message['message'] == 'Order already done':
+                                logger.critical("Order is already canceled or filled. Verifying orders now.")
+                                self.auth_client.verify_orders()
+                            else:
+                                logger.critical("Message is different than expected.")
+                        else:
+                            logger.debug("Exchange messaage is our order_id. Cancel sent successfully.")
+                            self.auth_client.sent_sell_cancel = True
+                            logger.debug("Setting Sent Sell Cancel to True.")
+                    else:
+                        logger.debug("Already sent sell cancel.")
+                        self.auth_client.num_sell_cancel_rejects += 1
+                        if self.auth_client.num_sell_cancel_rejects > 100:
+                            # The exchange must not have received the cancel request. Sending New Cancel request
+                            # HTTP/1.1 400 32 <-- Error code
+                            logger.critical("This really should not be happening.")
+                            logger.critical("Retrying to Cancel Order:")
+                            logger.critical(self.auth_client.my_sell_orders)
                             exchange_message = self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
-                            logger.debug("Exchange Message:")
-                            logger.debug(exchange_message)
+                            logger.critical("Exchange Message Inner:")
+                            logger.critical(exchange_message)
                             if 'message' in exchange_message:
+                                self.auth_client.verify_orders()
                                 if exchange_message['message'] == "order not found":
-                                    logger.debug("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
-                                    self.auth_client.sent_sell_cancel = True
-                                    logger.debug("Setting Sent Sell Cancel to True.")
+                                    logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
                                 elif exchange_message['message'] == 'Order already done':
-                                    logger.critical("Order is already canceled or filled. Verifying orders now.")
-                                    self.auth_client.verify_orders()
+                                    logger.critical("Order is already canceled or filled.")
                                 else:
                                     logger.critical("Message is different than expected.")
                             else:
-                                logger.debug("Exchange messaage is our order_id. Cancel sent successfully.")
+                                logger.critical("Exchange Message is our order_ID. Cancel sent successfully.")
                                 self.auth_client.sent_sell_cancel = True
-                                logger.debug("Setting Sent Sell Cancel to True.")
-                        else:
-                            logger.debug("Already sent sell cancel.")
-                            self.auth_client.num_sell_cancel_rejects += 1
-                            if self.auth_client.num_sell_cancel_rejects > 100:
-                                # The exchange must not have received the cancel request. Sending New Cancel request
-                                # HTTP/1.1 400 32 <-- Error code
-                                logger.critical("This really should not be happening.")
-                                logger.critical("Retrying to Cancel Order:")
-                                logger.critical(self.auth_client.my_sell_orders)
-                                exchange_message = self.auth_client.cancel_order(self.auth_client.my_sell_orders[0]['id'])
-                                logger.critical("Exchange Message Inner:")
-                                logger.critical(exchange_message)
-                                if 'message' in exchange_message:
-                                    self.auth_client.verify_orders()
-                                    if exchange_message['message'] == "order not found":
-                                        logger.critical("Order is Not Found. It probably hasn't made it to the orderbook yet. Don't do anything.")
-                                    elif exchange_message['message'] == 'Order already done':
-                                        logger.critical("Order is already canceled or filled.")
-                                    else:
-                                        logger.critical("Message is different than expected.")
-                                else:
-                                    logger.critical("Exchange Message is our order_ID. Cancel sent successfully.")
-                                    self.auth_client.sent_sell_cancel = True
-                                    logger.critical("Setting Sent Sell Cancel to True")
-                                logger.critical("Sent Sell Cancel should already be set to True...")
-                                logger.critical("Resetting cancel rejects.")
-                                self.auth_client.num_sell_cancel_rejects = 0
-                    else:
-                        # Keep Order
-                        logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
+                                logger.critical("Setting Sent Sell Cancel to True")
+                            logger.critical("Sent Sell Cancel should already be set to True...")
+                            logger.critical("Resetting cancel rejects.")
+                            self.auth_client.num_sell_cancel_rejects = 0
                 else:
-                    # Remove Order? No Need to... lets just leave it out there..
-                    logger.debug("No need to remove order because the ask is now more than 100 ticks from the Ask Theo.")
+                    # Keep Order
+                    logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
+
             else:
                 logger.critical("We have more than just one order in the order book. Somethin is wrong...")
 
