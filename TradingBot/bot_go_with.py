@@ -13,12 +13,11 @@ from datetime import datetime
 strategy_settings = {
     'product_id': 'BTC-USD',
     'strategy_name': "bot_sma_switch",
-    'order_size': 0.0001,
-    'buy_initial_offset': 50,
-    'sell_initial_offset': 50,
-    'sma_swap_trigger_level': 100,
-    'sma_long_duration': 4 * 60,
-    'sma_short_duration': 10,
+    'order_size': 0.01,
+    'buy_initial_offset': 10,
+    'sell_initial_offset': 10,
+    'sma_long_duration': 30 * 60,
+    'sma_short_duration': 5*60,
     'fill_notifications': True,
     'place_notifications': False,
     'connection_notifications': True,
@@ -91,7 +90,7 @@ while order_book.message_count < 1000000000000:
     
     if order_book.reset_sma == True:
         # Reset SMAs.
-        my_MA.reset_smas()
+        #my_MA.reset_smas()
         order_book.reset_sma = False
         
     long_sma = my_MA.add_value(order_book.trade_price)

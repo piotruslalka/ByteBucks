@@ -226,11 +226,11 @@ class OrderBookConsole(OrderBook):
                 self.had_position = False
 
             if self.reset_sma == False:
-                if self._ask < self.long_sma - self.sell_initial_offset:
+                if self.short_sma < self.long_sma - self.sell_initial_offset and self._ask < self.long_sma:
                     # Place a sell order.
                     self.bid_theo = self.long_sma - 10000
                     self.ask_theo = self.long_sma - 10000
-                elif self._bid > self.long_sma + self.buy_initial_offset:
+                elif self.short_sma > self.long_sma + self.buy_initial_offset and self._bid > self.long_sma:
                     # Place a buy order.
                     self.bid_theo = self.long_sma + 10000
                     self.ask_theo = self.long_sma + 10000
@@ -244,7 +244,7 @@ class OrderBookConsole(OrderBook):
         elif self.auth_client.net_position > 0:
             # We are long.
             self.had_position = True
-            if self._ask < self.short_sma-self.buy_initial_offset or self._ask < self.long_sma:
+            if self._ask < self.long_sma:
                 self.bid_theo = self.long_sma - 10000
                 self.ask_theo = self.long_sma - 10000
             else:
@@ -253,7 +253,7 @@ class OrderBookConsole(OrderBook):
         elif self.auth_client.net_position < 0:
             # we are short.
             self.had_position = True
-            if self._bid > self.short_sma+self.sell_initial_offset or self._bid > self.long_sma:
+            if self._bid > self.long_sma:
                 self.bid_theo = self.long_sma + 10000
                 self.ask_theo = self.long_sma + 10000
             else:
