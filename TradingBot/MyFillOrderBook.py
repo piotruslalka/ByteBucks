@@ -40,7 +40,7 @@ class MyFillOrderBook(AuthenticatedClient):
         self.last_sell_price = 0
         self.current_trade_price = 0
 
-    def place_my_limit_order(self, side, price, size='0.01'):
+    def place_my_order(self, side, price, size='0.01', time_in_force='GTC', post_only = True):
         """ I place the limit order here """
         if(config.debug):
             return (True)
@@ -51,9 +51,9 @@ class MyFillOrderBook(AuthenticatedClient):
         logger.warning("We are placing an Order at:" + str_price)
 
         if side=='buy':
-            my_order = self.buy(product_id=self.product_id, price=str_price, size=str_size, time_in_force='GTC', post_only=True)
+            my_order = self.buy(product_id=self.product_id, price=str_price, size=str_size, time_in_force=time_in_force, post_only=post_only)
         elif side=='sell':
-            my_order = self.sell(product_id=self.product_id, price=str_price, size=str_size, time_in_force='GTC', post_only=True)
+            my_order = self.sell(product_id=self.product_id, price=str_price, size=str_size, time_in_force=time_in_force, post_only=post_only)
         else:
             #Sent order place without side!
             logging.critical("Invalid order side! " + side)
