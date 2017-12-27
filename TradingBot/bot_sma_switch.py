@@ -13,16 +13,18 @@ from datetime import datetime
 strategy_settings = {
     'product_id': 'BTC-USD',
     'strategy_name': "bot_sma_switch",
-    'order_size': 0.01,
-    'buy_initial_offset': 50,
-    'sell_initial_offset': 50,
+    'order_size': 0.004,
+    'buy_initial_offset': 500,
+    'sell_initial_offset': 500,
+    'buy_initial_offset_percentage': 0.005,
+    'sell_initial_offset_percentage': 0.01,
     'buy_additional_offset': 0,
     'sell_additional_offset': 0,
     'buy_max_initial_profit_target': 50,
     'sell_max_initial_profit_target': 50,
     'max_long_position': 100,
     'max_short_position': 100,
-    'sma_swap_trigger_level': 100,
+    'sma_swap_trigger_level': 10000,
     'sma_long_duration': 12*60,
     'sma_short_duration': 30,
     'std_long_duration': 30,
@@ -106,6 +108,10 @@ while order_book.message_count < 1000000000000:
 
     if long_sma != None:
         if my_MA.count > 30:
+            order_book.buy_initial_offset = round(strategy_settings.get('buy_initial_offset_percentage') * long_sma,8)
+            order_book.sell_initial_offset = round(strategy_settings.get('sell_initial_offset_percentage') * long_sma,8)
+            order_book.buy_max_initial_profit_target = order_book.buy_initial_offset
+            order_book.sell_max_initial_profit_target = order_book.sell_initial_offset
             short_sma =  my_MA.get_sma(strategy_settings.get('sma_short_duration')*60)
             if (order_book.auth_client.net_position >= strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma < -5) or (order_book.auth_client.net_position <= -strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma > 5):
                 use_long_sma = False
