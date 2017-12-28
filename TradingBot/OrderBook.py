@@ -272,7 +272,7 @@ class OrderBookConsole(OrderBook):
                         # Keep Order
                         logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
                 elif abs(my_order_price - self.bid_theo) > 0.1*self.buy_initial_offset:
-                    logger.debug("Canceling offer since it has sufficiently diverged from the bid theo.")
+                    logger.debug("Canceling bid since it has sufficiently diverged from the bid theo.")
                     self.cancel_buy_order()
                 else:
                     # Remove Order? No need to.. lets just leave it out there...
@@ -343,7 +343,7 @@ class OrderBookConsole(OrderBook):
                 if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 1.99 * self.order_size:
                     order_size = round(-self.auth_client.real_position,8)
                 
-                self.place_buy_order(order_price, order_size)
+                self.place_sell_order(order_price, order_size)
             
             elif ((self._ask - self.min_tick) > self.ask_theo and self.auth_client.net_position > -self.max_short_position):
                 # We want to place a Sell Order
