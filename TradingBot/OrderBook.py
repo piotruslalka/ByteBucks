@@ -183,7 +183,7 @@ class OrderBookConsole(OrderBook):
                     logger.critical("Message Type == 'done' with a new message reason.")
 
             elif message['type'] == 'match':
-                # We recieved a fill message
+                # We received a fill message
                 if message['side'] == 'buy':
                     if len(self.auth_client.my_buy_orders) > 0:
                         if message['maker_order_id'] == self.auth_client.my_buy_orders[0]['id']:
@@ -207,7 +207,7 @@ class OrderBookConsole(OrderBook):
                 # we received a change messages
                 logger.critical("Received a Change Message... We currently aren't doing anything with these, but logging them.")
             else:
-                logger.critical("Received a Message Type that we have not yet coded for. Mesage Type: " + message['type'])
+                logger.critical("Received a Message Type that we have not yet coded for. Message Type: " + message['type'])
 
     def on_bidask_update(self):
         # Since the bid/ask changed. Let's see if we need to place a trade.
@@ -263,7 +263,7 @@ class OrderBookConsole(OrderBook):
 
                 if (self._bid < self.bid_theo):
                     #logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
-                    if (self._bid > (my_order_price + (self.min_tick*0))):
+                    if (self._bid > my_order_price): #(my_order_price + (self.min_tick*0))):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
                         #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
                         # Cancel Current Order
@@ -271,7 +271,7 @@ class OrderBookConsole(OrderBook):
                     else:
                         # Keep Order
                         logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
-                elif abs(my_order_price - self.bid_theo) > 0.1*self.buy_initial_offset:
+                elif abs(my_order_price - self.bid_theo) > self.buy_initial_offset:
                     logger.debug("Canceling bid since it has sufficiently diverged from the bid theo.")
                     self.cancel_buy_order()
                 else:
@@ -312,14 +312,14 @@ class OrderBookConsole(OrderBook):
                 #Check if order should be on best offer
                 if (self._ask > self.ask_theo):
                     #logger.debug("Ask: " + str(self._ask) + " should be greater than " + str(self.ask_theo - (self.min_tick*10)))
-                    if (self._ask < (my_order_price - (self.min_tick * 0))):
+                    if (self._ask < my_order_price): #(my_order_price - (self.min_tick * 0))):
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
                         #logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
                         self.cancel_sell_order()
                     else:
                         # Keep Order
                         logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
-                elif abs(my_order_price - self.ask_theo) > 0.1*self.sell_initial_offset:
+                elif abs(my_order_price - self.ask_theo) > self.sell_initial_offset:
                     logger.debug("Canceling offer since it has sufficiently diverged from the ask theo.")
                     self.cancel_sell_order()
                 else:
@@ -341,7 +341,7 @@ class OrderBookConsole(OrderBook):
 
                 order_size = self.order_size
                 if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 1.99 * self.order_size:
-                    order_size = round(-self.auth_client.real_position,8)
+                    order_size = round(self.auth_client.real_position,8)
                 
                 self.place_sell_order(order_price, order_size)
             
@@ -350,9 +350,8 @@ class OrderBookConsole(OrderBook):
                 order_price = self._ask
                 if self._spread > .01:
                     order_price -= self.min_tick
-
-                order_size = self.order_size
-                self.place_sell_order(order_price, order_size)
+                    
+                self.place_sell_order(order_price, self.order_size)
 
     def place_buy_order(self, order_price, order_size):
         order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = order_size)
