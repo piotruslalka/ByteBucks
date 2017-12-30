@@ -271,7 +271,7 @@ class OrderBookConsole(OrderBook):
                     else:
                         # Keep Order
                         logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
-                elif abs(my_order_price - self.bid_theo) > self.buy_initial_offset:
+                elif abs(my_order_price - self.bid_theo) > self.buy_initial_offset*0.5:
                     logger.debug("Canceling bid since it has sufficiently diverged from the bid theo.")
                     self.cancel_buy_order()
                 else:
@@ -282,27 +282,17 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We do not currently have any active orders. Place buy order if the bid is below our bid theo or if we are short.
-            if self.auth_client.net_position <= -self.min_order_size:
-                if(self.bid_theo < self._bid):
-                    order_price = round(self.bid_theo,2)
-                else:
-                    if (self._spread > .01):
-                        order_price = self._bid + self.min_tick
-                    else:
-                        order_price = self._bid
+            if ((self._bid + self.min_tick) < self.bid_theo and self.auth_client.net_position < self.max_long_position):
+                order_price = self._bid
+                if self._spread > .01:
+                    order_price += self.min_tick
 
                 order_size = self.order_size
                 if (-self.min_order_size) > self.auth_client.real_position and self.auth_client.real_position > -1.99 * self.order_size:
                     order_size = round(-self.auth_client.real_position,8)
-                
+                    
                 self.place_buy_order(order_price, order_size)
-                
-            elif ((self._bid + self.min_tick) < self.bid_theo and self.auth_client.net_position < self.max_long_position):
-                order_price = self._bid
-                if self._spread > .01:
-                    order_price += self.min_tick
-                self.place_buy_order(order_price, self.order_size)
-
+                    
         # Check to see if we already placed an order
         if (len(self.auth_client.my_sell_orders) > 0):
             # We have a sell order already on the exchange
@@ -319,7 +309,7 @@ class OrderBookConsole(OrderBook):
                     else:
                         # Keep Order
                         logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
-                elif abs(my_order_price - self.ask_theo) > self.sell_initial_offset:
+                elif abs(my_order_price - self.ask_theo) > self.sell_initial_offset*0.5:
                     logger.debug("Canceling offer since it has sufficiently diverged from the ask theo.")
                     self.cancel_sell_order()
                 else:
@@ -330,28 +320,17 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We do not currently have any active orders. Place sell order if the ask is below our ask theo or if we are long.
-            if self.auth_client.net_position >= self.min_order_size:
-                if(self.ask_theo > self._ask):
-                    order_price = round(self.ask_theo,2)
-                else:
-                    if (self._spread > .01):
-                        order_price = self._ask - self.min_tick
-                    else:
-                        order_price = self._ask
-
-                order_size = self.order_size
-                if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 1.99 * self.order_size:
-                    order_size = round(self.auth_client.real_position,8)
-                
-                self.place_sell_order(order_price, order_size)
-            
-            elif ((self._ask - self.min_tick) > self.ask_theo and self.auth_client.net_position > -self.max_short_position):
+            if ((self._ask - self.min_tick) > self.ask_theo and self.auth_client.net_position > -self.max_short_position):
                 # We want to place a Sell Order
                 order_price = self._ask
                 if self._spread > .01:
                     order_price -= self.min_tick
+                
+                order_size = self.order_size
+                if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 1.99 * self.order_size:
+                    order_size = round(self.auth_client.real_position,8)
                     
-                self.place_sell_order(order_price, self.order_size)
+                self.place_sell_order(order_price, order_size)
 
     def place_buy_order(self, order_price, order_size):
         order_successful = self.auth_client.place_my_limit_order(side = 'buy', price = order_price, size = order_size)
