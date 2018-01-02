@@ -36,6 +36,8 @@ class OrderBookConsole(OrderBook):
         self.long_std = 0
         self.strategy_name = strategy_settings.get('strategy_name')
         self.order_size = strategy_settings.get('order_size')
+        self.min_size_for_order_update = strategy_settings.get('min_size_for_order_update')
+        self.min_distance_for_order_update = strategy_settings.get('min_distance_for_order_update')
         self.buy_initial_offset = strategy_settings.get('buy_initial_offset')
         self.sell_initial_offset = strategy_settings.get('sell_initial_offset')
         self.buy_additional_offset = strategy_settings.get('buy_additional_offset')
@@ -261,10 +263,9 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_buy_orders) == 1):
                 my_order_price = self.auth_client.my_buy_orders[0]['price']
 
-                if (self._bid < (self.bid_theo + (self.min_tick*500))):
+                if (self._bid < (self.bid_theo + (self.min_tick*10000))):
                     # Keep Order
-                    #logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
-                    if (self._bid > (my_order_price + (self.min_tick*0))):
+                    if (((self._bid > my_order_price) and (self._bid_depth > self.min_size_for_order_update)) or (self._bid > my_order_price + self.min_distance_for_order_update)):
                         # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
                         #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
                         # Cancel Current Order
@@ -292,7 +293,7 @@ class OrderBookConsole(OrderBook):
                         else:
                             logger.debug("Already sent buy cancel.")
                             self.auth_client.num_buy_cancel_rejects += 1
-                            if self.auth_client.num_buy_cancel_rejects > 100:
+                            if self.auth_client.num_buy_cancel_rejects > 1000:
                                 # The exchange must not have received the cancel request. Sending New Cancel request
                                 logger.critical("This really should not be happening.")
                                 logger.critical("Retrying to Cancel Order:")
@@ -317,10 +318,10 @@ class OrderBookConsole(OrderBook):
                                 self.auth_client.num_buy_cancel_rejects = 0
                     else:
                         # Keep Order
-                        logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
+                        logger.debug("Bid is either less than the previous order placed or size is less than 10. Do not remove original order.")
                 else:
                     # Remove Order? No need to.. lets just leave it out there...
-                    logger.debug("No need to remove order because the bid is now more than 100 ticks from the Bid Theo.")
+                    logger.debug("Bid is less than bid theo + 500 ticks.")
 
             else:
                 logger.critical("We have more than just one order in the order book. Something is wrong...")
@@ -361,10 +362,10 @@ class OrderBookConsole(OrderBook):
             if (len(self.auth_client.my_sell_orders) == 1):
                 my_order_price = self.auth_client.my_sell_orders[0]['price']
 
-                if (self._ask > (self.ask_theo - (self.min_tick * 500))):
+                if (self._ask > (self.ask_theo - (self.min_tick * 10000))):
                     # Keep Order
                     #logger.debug("Ask: " + str(self._ask) + " should be greater than " + str(self.ask_theo - (self.min_tick*10)))
-                    if (self._ask < (my_order_price - (self.min_tick * 0))):
+                    if (((self._ask < my_order_price) and (self._ask_depth > self.min_size_for_order_update)) or (self._ask < my_order_price - self.min_distance_for_order_update)):
                         # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
                         #logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
                         # Cancel Current Order
@@ -392,7 +393,7 @@ class OrderBookConsole(OrderBook):
                         else:
                             logger.debug("Already sent sell cancel.")
                             self.auth_client.num_sell_cancel_rejects += 1
-                            if self.auth_client.num_sell_cancel_rejects > 100:
+                            if self.auth_client.num_sell_cancel_rejects > 1000:
                                 # The exchange must not have received the cancel request. Sending New Cancel request
                                 # HTTP/1.1 400 32 <-- Error code
                                 logger.critical("This really should not be happening.")
@@ -418,10 +419,10 @@ class OrderBookConsole(OrderBook):
                                 self.auth_client.num_sell_cancel_rejects = 0
                     else:
                         # Keep Order
-                        logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
+                        logger.debug("Ask is either higher than the previous order placed or size is less than 10. Do not remove original order.")
                 else:
                     # Remove Order? No Need to... lets just leave it out there..
-                    logger.debug("No need to remove order because the ask is now more than 100 ticks from the Ask Theo.")
+                    logger.debug("Ask is higher than Ask Theo - 500 ticks.")
             else:
                 logger.critical("We have more than just one order in the order book. Somethin is wrong...")
 
