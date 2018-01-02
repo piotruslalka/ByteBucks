@@ -36,6 +36,8 @@ class OrderBookConsole(OrderBook):
         self.long_std = 0
         self.strategy_name = strategy_settings.get('strategy_name')
         self.order_size = strategy_settings.get('order_size')
+        self.min_size_for_order_update = strategy_settings.get('min_size_for_order_update')
+        self.min_distance_for_order_update = strategy_settings.get('min_distance_for_order_update')
         self.buy_initial_offset = strategy_settings.get('buy_initial_offset')
         self.sell_initial_offset = strategy_settings.get('sell_initial_offset')
         self.buy_additional_offset_multiplier = strategy_settings.get('buy_additional_offset_multiplier')
@@ -290,9 +292,9 @@ class OrderBookConsole(OrderBook):
                 order_size = self.order_size
                 if (-self.min_order_size) > self.auth_client.real_position and self.auth_client.real_position > -1.99 * self.order_size:
                     order_size = round(-self.auth_client.real_position,8)
-                    
+
                 self.place_buy_order(order_price, order_size)
-                    
+
         # Check to see if we already placed an order
         if (len(self.auth_client.my_sell_orders) > 0):
             # We have a sell order already on the exchange
@@ -314,7 +316,7 @@ class OrderBookConsole(OrderBook):
                     self.cancel_sell_order()
                 else:
                     # Remove Order? No Need to... lets just leave it out there..
-                    logger.debug("No need to remove order because the ask is now more than 100 ticks from the Ask Theo.")
+                    logger.debug("Ask is higher than Ask Theo - 500 ticks.")
             else:
                 logger.critical("We have more than just one order in the order book. Somethin is wrong...")
 
@@ -325,11 +327,11 @@ class OrderBookConsole(OrderBook):
                 order_price = self._ask
                 if self._spread > .01:
                     order_price -= self.min_tick
-                
+
                 order_size = self.order_size
                 if self.min_order_size < self.auth_client.real_position  and self.auth_client.real_position < 1.99 * self.order_size:
                     order_size = round(self.auth_client.real_position,8)
-                    
+
                 self.place_sell_order(order_price, order_size)
 
     def place_buy_order(self, order_price, order_size):
@@ -349,8 +351,8 @@ class OrderBookConsole(OrderBook):
             logger.critical("Order of Price: " + str(order_price) +" Rejected... Trying again")
             logger.debug("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
             self.num_order_rejects += 1
-    
-    
+
+
     def place_sell_order(self, order_price, order_size):
         order_successful = self.auth_client.place_my_limit_order(side = 'sell', price = order_price, size = order_size)
         logger.info("Ask is Higher than Ask Theo, we are placing a Sell order of: " + str(order_size) + " at:" + str(self._ask - self.min_tick) + "\t"
@@ -367,7 +369,7 @@ class OrderBookConsole(OrderBook):
             logger.critical("Order Rejected... Trying again")
             logger.debug("Market Bid/Ask: " + str(self._bid) + " / " + str(self._ask))
             self.num_order_rejects = self.num_order_rejects + 1
-    
+
     def cancel_buy_order(self):
         # Cancel Current Order
         if (not self.auth_client.sent_buy_cancel):
@@ -417,7 +419,7 @@ class OrderBookConsole(OrderBook):
                 logger.critical("Sent Buy Cancel should already be set to True...")
                 logger.critical("Resetting cancel rejects.")
                 self.auth_client.num_buy_cancel_rejects = 0
-    
+
     def cancel_sell_order(self):
         # Cancel Current Order
         if (not self.auth_client.sent_sell_cancel):
@@ -468,6 +470,6 @@ class OrderBookConsole(OrderBook):
                 logger.critical("Sent Sell Cancel should already be set to True...")
                 logger.critical("Resetting cancel rejects.")
                 self.auth_client.num_sell_cancel_rejects = 0
-        
+
     def get_pnl(self):
         return self.auth_client.pnl + self.auth_client.real_position * float(self.trade_price)
