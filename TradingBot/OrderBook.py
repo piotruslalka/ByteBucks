@@ -259,20 +259,15 @@ class OrderBookConsole(OrderBook):
         # Check to see if we already placed an order
         if (len(self.auth_client.my_buy_orders) > 0):
             # We have an order already on the exchange
-
             if (len(self.auth_client.my_buy_orders) == 1):
                 my_order_price = self.auth_client.my_buy_orders[0]['price']
 
                 if (self._bid < self.bid_theo):
-                    #logger.debug("Bid: " + str(self._bid) + " should be less than " + str(self.bid_theo + (self.min_tick*10)))
-                    if (self._bid > my_order_price): #(my_order_price + (self.min_tick*0))):
-                        # Bid has moved more than 10 ticks from my order price. Please place a new order at the current bid + 1 minTick
-                        #logger.debug("Bid: " + str(self._bid) + " should be greater than " + str(my_order_price + (self.min_tick*10)))
-                        # Cancel Current Order
+                    if (((self._bid > my_order_price) and (self._bid_depth > self.min_size_for_order_update)) or (self._bid > my_order_price + self.min_distance_for_order_update)):
                         self.cancel_buy_order()
                     else:
                         # Keep Order
-                        logger.debug("Bid is either less than the previous order placed or within 10 ticks of it. Do not remove original order.")
+                        logger.debug("Bid is either equal to the order placed or the size or distance from order triggers were not yet reached. Do not remove original order.")
                 elif abs(my_order_price - self.bid_theo) > self.buy_initial_offset*0.5:
                     logger.debug("Canceling bid since it has sufficiently diverged from the bid theo.")
                     self.cancel_buy_order()
@@ -301,16 +296,13 @@ class OrderBookConsole(OrderBook):
 
             if (len(self.auth_client.my_sell_orders) == 1):
                 my_order_price = self.auth_client.my_sell_orders[0]['price']
-                #Check if order should be on best offer
+
                 if (self._ask > self.ask_theo):
-                    #logger.debug("Ask: " + str(self._ask) + " should be greater than " + str(self.ask_theo - (self.min_tick*10)))
-                    if (self._ask < my_order_price): #(my_order_price - (self.min_tick * 0))):
-                        # Ask has moved more than 10 ticks from my order price. Please place a new order at the current ask - 1 minTick
-                        #logger.debug("Ask: " + str(self._ask) + " should be less than " + str(my_order_price - (self.min_tick*10)))
+                    if (((self._ask < my_order_price) and (self._ask_depth > self.min_size_for_order_update)) or (self._ask < my_order_price - self.min_distance_for_order_update)):
                         self.cancel_sell_order()
                     else:
                         # Keep Order
-                        logger.debug("Ask is either higher than the previous order placed or within 10 ticks of it. Do not remove original order.")
+                        logger.debug("Ask is either equal to the order placed or the size or distnace from order triggers were not yet reached. Do not remove original order.")
                 elif abs(my_order_price - self.ask_theo) > self.sell_initial_offset*0.5:
                     logger.debug("Canceling offer since it has sufficiently diverged from the ask theo.")
                     self.cancel_sell_order()
