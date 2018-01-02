@@ -112,8 +112,8 @@ class MyFillOrderBook(AuthenticatedClient):
                     logger.debug(self.my_buy_orders)
                 else:
                     logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_buy_orders: " + self.my_buy_orders[0]['id'])
-            else:
-                logger.critical("Canceling a buy order that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
+            #else:
+            #    logger.critical("Canceling a buy order that did not originally exist in the buy order book. This is only okay if it was a manual fill.")
         elif message['side'] == 'sell':
             if len(self.my_sell_orders) > 0:
                 if message['order_id'] == self.my_sell_orders[0]['id']:
@@ -124,8 +124,8 @@ class MyFillOrderBook(AuthenticatedClient):
                     logger.debug(self.my_sell_orders)
                 else:
                     logger.critical("Message order_id: " + message['order_id'] + " does not match the id we have in my_sell_orders: " + self.my_sell_orders[0]['id'])
-            else:
-                logger.critical("Canceling a sell order that did not originally exist in the sell order book. This is only okay if it was a manual fill.")
+            #else:
+            #    logger.critical("Canceling a sell order that did not originally exist in the sell order book. This is only okay if it was a manual fill.")
         else:
             logger.critical("We have a message with side other than Buy or Sell in process cancel message.")
             logger.critical(message)
