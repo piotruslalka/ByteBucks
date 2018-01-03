@@ -18,8 +18,6 @@ strategy_settings = {
     'min_distance_for_order_update': 500,
     'buy_initial_offset': 10,
     'sell_initial_offset': 10,
-    'buy_additional_offset': 0,
-    'sell_additional_offset': 0,
     'buy_max_initial_profit_target': 5,
     'sell_max_initial_profit_target': 5,
     'max_long_position': 1000,
@@ -73,8 +71,8 @@ logger.info("My user_id is: " + my_user_id)
 
 # Moving Average Initialization.
 my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration')*60)
-#current_SMA = 19425
-#my_MA.add_value(current_SMA)
+current_SMA = 19425
+my_MA.add_value(current_SMA)
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)

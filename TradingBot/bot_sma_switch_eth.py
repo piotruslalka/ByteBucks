@@ -18,8 +18,6 @@ strategy_settings = {
     'min_distance_for_order_update': 25,
     'buy_initial_offset': 5,
     'sell_initial_offset': 5,
-    'buy_additional_offset': 0,
-    'sell_additional_offset': 0,
     'buy_max_initial_profit_target': 0.50,
     'sell_max_initial_profit_target': 0.50,
     'max_long_position': 1000,
