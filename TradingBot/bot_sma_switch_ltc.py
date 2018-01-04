@@ -157,7 +157,10 @@ while order_book.message_count < 1000000000000:
             order_book.api_key = myKeys['key']
             order_book.api_secret = myKeys['secret']
             order_book.api_passphrase = myKeys['passphrase']
-            order_book.auth_client.verify_orders()
+            try:
+                order_book.auth_client.verify_orders()
+            except:
+                logger.error("Unexpected error: " + str(sys.exc_info()[0]))
             order_book.start()
             timer_count = loop_count
 
@@ -196,7 +199,10 @@ while order_book.message_count < 1000000000000:
             order_book.api_key = myKeys['key']
             order_book.api_secret = myKeys['secret']
             order_book.api_passphrase = myKeys['passphrase']
-            order_book.auth_client.verify_orders()
+            try:
+                order_book.auth_client.verify_orders()
+            except:
+                logger.error("Unexpected error: " + str(sys.exc_info()[0]))
             order_book.start()
             stale_message_count=-1
         stale_message_count=order_book.message_count
