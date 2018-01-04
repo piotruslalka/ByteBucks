@@ -36,6 +36,8 @@ class OrderBookConsole(OrderBook):
         self.long_std = 0
         self.strategy_name = strategy_settings.get('strategy_name')
         self.order_size = strategy_settings.get('order_size')
+        self.bid_depth_restriction = strategy_settings.get('bid_depth_restriction')
+        self.ask_depth_restriction = strategy_settings.get('ask_depth_restriction')
         self.min_size_for_order_update = strategy_settings.get('min_size_for_order_update')
         self.min_distance_for_order_update = strategy_settings.get('min_distance_for_order_update')
         self.buy_initial_offset = strategy_settings.get('buy_initial_offset')
@@ -277,7 +279,7 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We do not currently have any active orders. Place buy order if the bid is below our bid theo or if we are short.
-            if ((self._bid + self.min_tick) < self.bid_theo and self.auth_client.net_position < self.max_long_position):
+            if ((self._bid + self.min_tick) < self.bid_theo and self.auth_client.net_position < self.max_long_position and (self._bid_depth > self._ask_depth - self.ask_depth_restriction or self._bid_depth > self.bid_depth_restriction)):
                 order_price = self._bid
                 if self._spread > .01:
                     order_price += self.min_tick
@@ -312,7 +314,7 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We do not currently have any active orders. Place sell order if the ask is below our ask theo or if we are long.
-            if ((self._ask - self.min_tick) > self.ask_theo and self.auth_client.net_position > -self.max_short_position):
+            if ((self._ask - self.min_tick) > self.ask_theo and self.auth_client.net_position > -self.max_short_position and (self._ask_depth > self._bid_depth - self.bid_depth_restriction or self._ask_depth > self.ask_depth_restriction)):
                 # We want to place a Sell Order
                 order_price = self._ask
                 if self._spread > .01:

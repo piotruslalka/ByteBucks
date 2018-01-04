@@ -13,20 +13,22 @@ from datetime import datetime
 strategy_settings = {
     'product_id': 'BTC-USD',
     'strategy_name': "bot_sma_switch",
-    'order_size': 0.033,
+    'order_size': 0.0001,
+    'buy_initial_offset': 5,
+    'sell_initial_offset': 5,
+    'buy_max_initial_profit_target': 50,
+    'sell_max_initial_profit_target': 50,
     'min_size_for_order_update': 5,
     'min_distance_for_order_update': 500,
-    'buy_initial_offset': 150,
-    'sell_initial_offset': 300,
-    'buy_max_initial_profit_target': 500,
-    'sell_max_initial_profit_target': 500,
+    'bid_depth_restriction': 5,
+    'ask_depth_restriction': 5,
     'max_long_position': 1000,
     'max_short_position': 1000,
     'sma_swap_trigger_level': 1000,
-    'sma_long_duration': 72*60,
+    'sma_long_duration': 12*60,
     'sma_short_duration': 30,
-    'std_long_duration': 30,
-    'std_short_duration': 5,
+    'std_long_duration': 1,
+    'std_short_duration': 1,
     'std_long_multiplier': 0.5,
     'std_short_multiplier': 2,
     'fill_notifications': True,
@@ -71,7 +73,7 @@ logger.info("My user_id is: " + my_user_id)
 
 # Moving Average Initialization.
 my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration')*60)
-#current_SMA = 13927.07
+#current_SMA = 15000
 #my_MA.add_value(current_SMA)
 
 # Start Up OrderBook
