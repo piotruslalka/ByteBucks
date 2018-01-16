@@ -11,15 +11,15 @@ from datetime import datetime
 
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
-    'product_id': 'ETH-USD',
+    'product_id': 'BTC-USD',
     'strategy_name': "bot_sma_switch",
-    'order_size': 0.2,
-    'min_size_for_order_update': 3,
-    'min_distance_for_order_update': 25,
+    'order_size': 0.0011,
+    'min_size_for_order_update': 5,
+    'min_distance_for_order_update': 500,
     'buy_initial_offset': 5,
     'sell_initial_offset': 10,
-    'buy_max_initial_profit_target': 50,
-    'sell_max_initial_profit_target': 50,
+    'buy_max_initial_profit_target': 5,
+    'sell_max_initial_profit_target': 5,
     'max_long_position': 1000,
     'max_short_position': 1000,
     'sma_swap_trigger_level': 1000,
@@ -71,15 +71,15 @@ logger.info("My user_id is: " + my_user_id)
 
 # Moving Average Initialization.
 my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration')*60)
-#current_SMA = 19425
+#current_SMA = 13927.07
 #my_MA.add_value(current_SMA)
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
-#order_book.auth_client.buy_levels = 0.89
-#order_book.auth_client.net_position = 15
-#current_price = 19100
-#current_pnl = -25.5
+#order_book.auth_client.buy_levels = 2.457492470
+#order_book.auth_client.net_position = -95
+#current_price = 14955
+#current_pnl = -31.71
 #order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
 #order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
 #order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position

@@ -11,15 +11,15 @@ from datetime import datetime
 
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
-    'product_id': 'ETH-USD',
+    'product_id': 'LTC-USD',
     'strategy_name': "bot_sma_switch",
-    'order_size': 0.2,
+    'order_size': 0.1,
     'min_size_for_order_update': 3,
-    'min_distance_for_order_update': 25,
-    'buy_initial_offset': 5,
-    'sell_initial_offset': 10,
-    'buy_max_initial_profit_target': 50,
-    'sell_max_initial_profit_target': 50,
+    'min_distance_for_order_update': 10,
+    'buy_initial_offset': 0.25,
+    'sell_initial_offset': 0.50,
+    'buy_max_initial_profit_target': 0.25,
+    'sell_max_initial_profit_target': 0.25,
     'max_long_position': 1000,
     'max_short_position': 1000,
     'sma_swap_trigger_level': 1000,
