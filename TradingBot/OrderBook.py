@@ -33,7 +33,7 @@ class OrderBookConsole(OrderBook):
         self.sma_cross_short = 0
         self.sma_cross_long = 0
         self.valid_sma = False
-        self.sma = None
+        self.sma = 0
         self.short_std = 0
         self.long_std = 0
         self.strategy_name = strategy_settings.get('strategy_name')

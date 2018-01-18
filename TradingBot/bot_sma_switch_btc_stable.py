@@ -12,10 +12,10 @@ from datetime import datetime
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
     'product_id': 'BTC-USD',
-    'strategy_name': "bot_sma_cross_stable",
+    'strategy_name': "bot_sma_stable",
     'order_size': 0.001,
     'set_ma_value': True,
-    'manual_ma_value': 11800.69,
+    'manual_ma_value': 9700.69,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
     'buy_initial_offset': 100,
@@ -77,13 +77,14 @@ my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
-#order_book.auth_client.buy_levels = 2.457492470
-#order_book.auth_client.net_position = -95
-#current_price = 14955
-#current_pnl = -31.71
-#order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
-#order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
-#order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
+order_book.auth_client.buy_levels = 0.038
+order_book.auth_client.net_position = -15
+current_price = 11220
+current_pnl = -2.90
+order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
+order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
+order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
+
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
@@ -105,7 +106,6 @@ while order_book.message_count < 1000000000000:
         long_sma = strategy_settings.get('manual_ma_value')
     else:
         long_sma = my_MA.add_value(order_book.trade_price)
-
 
     if order_book.num_order_rejects > 0:
         logger.warning("Setting Rejects back to 0")
@@ -132,7 +132,7 @@ while order_book.message_count < 1000000000000:
             logger.debug('Ask Theo: {:.2f}'.format(order_book.ask_theo))
             logger.debug('5_wStd: {:.2f}'.format(order_book.short_std))
             logger.debug('30_wStd: {:.2f}'.format(order_book.long_std))
-            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tsSMA: {:.2f}\tlSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, order_book.sma_cross_short, order_book.sma_cross_long))
+            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std))
 
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
