@@ -15,7 +15,7 @@ strategy_settings = {
     'strategy_name': "bot_sma_stable",
     'order_size': 0.01,
     'set_ma_value': True,
-    'manual_ma_value': 211.69,
+    'manual_ma_value': 213.69,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
     'buy_initial_offset': 0.50,
