@@ -233,44 +233,44 @@ class OrderBookConsole(OrderBook):
 
         elif self.auth_client.net_position > 0:
             # We are long
-            if self.sma_cross_short < self.sma_cross_long:
-                # We are trending. Do not sell right now
-                self.bid_theo = self.sma - 1000000
-                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) + self.buy_initial_offset
-
-            else:
-                # Not in a trend. Feel free to sell.
-                self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - std_offset
-                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) + self.buy_initial_offset
-
-            # if self.auth_client.net_position > 2:
+            # if self.sma_cross_short < self.sma_cross_long:
+            #     # We are trending. Do not sell right now
+            #     self.bid_theo = self.sma - 1000000
+            #     self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) + self.buy_initial_offset
+            #
+            # else:
+            #     # Not in a trend. Feel free to sell.
             #     self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - std_offset
             #     self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) + self.buy_initial_offset
-            #     if self.ask_theo > self.auth_client.last_buy_price + self.buy_max_initial_profit_target:
-            #         self.ask_theo = self.auth_client.last_buy_price + self.buy_max_initial_profit_target
-            # else:
-            #     self.bid_theo = self.sma - self.buy_initial_offset * abs(self.auth_client.net_position + 1) - std_offset
-            #     self.ask_theo = self.sma
+
+            if self.auth_client.net_position > 2:
+                self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - std_offset
+                self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) + self.buy_initial_offset
+                if self.ask_theo > self.auth_client.last_buy_price + self.buy_max_initial_profit_target:
+                    self.ask_theo = self.auth_client.last_buy_price + self.buy_max_initial_profit_target
+            else:
+                self.bid_theo = self.sma - self.buy_initial_offset * abs(self.auth_client.net_position + 1) - std_offset
+                self.ask_theo = self.sma
 
         else:
             # We are short
-            if self.sma_cross_short > self.sma_cross_long:
-                # We are trending. Do not sell right now
-                self.ask_theo = self.sma + 1000000
-                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) - self.sell_initial_offset
-            else:
-                # Not in a trend. Feel free to sell.
-                self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + std_offset
-                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) - self.sell_initial_offset
-
-            # if self.auth_client.net_position < -2:
+            # if self.sma_cross_short > self.sma_cross_long:
+            #     # We are trending. Do not sell right now
+            #     self.ask_theo = self.sma + 1000000
+            #     self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) - self.sell_initial_offset
+            # else:
+            #     # Not in a trend. Feel free to sell.
             #     self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + std_offset
             #     self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) - self.sell_initial_offset
-            #     if self.bid_theo < self.auth_client.last_sell_price - self.sell_max_initial_profit_target:
-            #         self.bid_theo = self.auth_client.last_sell_price - self.sell_max_initial_profit_target
-            # else:
-            #     self.ask_theo = self.sma + self.sell_initial_offset * abs(self.auth_client.net_position - 1) + std_offset
-            #     self.bid_theo = self.sma
+
+            if self.auth_client.net_position < -2:
+                self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + std_offset
+                self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) - self.sell_initial_offset
+                if self.bid_theo < self.auth_client.last_sell_price - self.sell_max_initial_profit_target:
+                    self.bid_theo = self.auth_client.last_sell_price - self.sell_max_initial_profit_target
+            else:
+                self.ask_theo = self.sma + self.sell_initial_offset * abs(self.auth_client.net_position - 1) + std_offset
+                self.bid_theo = self.sma
 
     def check_if_action_needed(self):
         # Check to see if we want to place any orders
