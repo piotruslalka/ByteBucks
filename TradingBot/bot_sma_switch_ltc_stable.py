@@ -101,7 +101,12 @@ reset_not_triggered = True
 while order_book.message_count < 1000000000000:
     loop_count += 1
     my_MA.count += 1
-    long_sma = my_MA.add_value(order_book.trade_price)
+
+    if strategy_settings.get('set_ma_value') == True:
+        set_to_nothing = my_MA.add_value(order_book.trade_price)
+        long_sma = strategy_settings.get('manual_ma_value')
+    else:
+        long_sma = my_MA.add_value(order_book.trade_price)
 
     if order_book.num_order_rejects > 0:
         logger.warning("Setting Rejects back to 0")
