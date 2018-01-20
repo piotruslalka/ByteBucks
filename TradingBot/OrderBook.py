@@ -49,7 +49,7 @@ class OrderBookConsole(OrderBook):
         self.fill_notifications = strategy_settings.get('fill_notifications')
         self.buy_max_initial_profit_target = strategy_settings.get('buy_max_initial_profit_target')
         self.sell_max_initial_profit_target = strategy_settings.get('sell_max_initial_profit_target')
-        self.sma_cross_diff = 
+        self.sma_cross_diff = strategy_settings.get('sma_cross_diff')
         self.bid_theo = 0
         self.ask_theo = 0
         self.num_order_rejects = 0
