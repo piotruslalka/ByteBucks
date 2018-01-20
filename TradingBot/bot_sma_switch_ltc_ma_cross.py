@@ -13,13 +13,13 @@ from datetime import datetime
 strategy_settings = {
     'product_id': 'LTC-USD',
     'strategy_name': "bot_sma_cross_stable",
-    'order_size': 0.01,
+    'order_size': 0.1,
     'set_ma_value': True,
     'manual_ma_value': 213.69,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
-    'buy_initial_offset': 0.50,
-    'sell_initial_offset': 0.50,
+    'buy_initial_offset': 1.00,
+    'sell_initial_offset': 2.00,
     'buy_max_initial_profit_target': 50000,
     'sell_max_initial_profit_target': 50000,
     'max_long_position': 10000,
@@ -77,13 +77,13 @@ my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
-order_book.auth_client.buy_levels = 0.024
-order_book.auth_client.net_position = 4
-current_price = 11429.71
-current_pnl = 3.12
-order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
-order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
-order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
+#order_book.auth_client.buy_levels = 0.024
+#order_book.auth_client.net_position = 4
+#current_price = 11429.71
+#current_pnl = 3.12
+#order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
+#order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
+#order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
