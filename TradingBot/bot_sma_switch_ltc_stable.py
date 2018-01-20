@@ -109,18 +109,15 @@ while order_book.message_count < 1000000000000:
 
     if long_sma != None:
         if my_MA.count > 30:
-            short_sma =  my_MA.get_sma(strategy_settings.get('sma_short_duration')*60)
-            if (order_book.auth_client.net_position >= strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma < -5) or (order_book.auth_client.net_position <= -strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma > 5):
-                use_long_sma = False
-            elif abs(long_sma-short_sma) < 5:
-                use_long_sma = True
+            sma_cross_short = my_MA.get_sma(strategy_settings.get('sma_cross_short_duration')*60)
+            sma_cross_long = my_MA.get_sma(strategy_settings.get('sma_cross_long_duration')*60)
 
-            if use_long_sma:
-                order_book.sma = long_sma
-            else:
-                order_book.sma = short_sma
+            order_book.sma_cross_short = sma_cross_short
+            order_book.sma_cross_long = sma_cross_long
 
+            order_book.sma = long_sma
             order_book.valid_sma = True
+
             order_book.short_std = my_MA.get_weighted_std(strategy_settings.get('std_short_duration')*60) * strategy_settings.get('std_short_multiplier')
             order_book.long_std = my_MA.get_weighted_std(strategy_settings.get('std_long_duration')*60) * strategy_settings.get('std_long_multiplier')
 
