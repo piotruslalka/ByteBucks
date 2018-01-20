@@ -49,6 +49,7 @@ class OrderBookConsole(OrderBook):
         self.fill_notifications = strategy_settings.get('fill_notifications')
         self.buy_max_initial_profit_target = strategy_settings.get('buy_max_initial_profit_target')
         self.sell_max_initial_profit_target = strategy_settings.get('sell_max_initial_profit_target')
+        self.sma_cross_diff = 
         self.bid_theo = 0
         self.ask_theo = 0
         self.num_order_rejects = 0
@@ -233,11 +234,14 @@ class OrderBookConsole(OrderBook):
 
         elif self.auth_client.net_position > 0:
             # We are long
-            if self.sma_cross_short < self.sma_cross_long:
-                # We are trending. Do not sell right now
+            if self.sma_cross_short < self.sma_cross_long - sma_cross_diff:
+                # We are trending. Do not buy right now
                 self.bid_theo = self.sma - 1000000
                 self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) + self.buy_initial_offset
-
+            elif self.sma_cross_short > self.sma_cross_long + sma_cross_diff:
+                # We are trending. Do not sell right now
+                self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - std_offset
+                self.ask_theo = self.sma + 1000000
             else:
                 # Not in a trend. Feel free to sell.
                 self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - std_offset
@@ -254,12 +258,16 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We are short
-            if self.sma_cross_short > self.sma_cross_long:
+            if self.sma_cross_short > self.sma_cross_long + sma_cross_diff:
                 # We are trending. Do not sell right now
                 self.ask_theo = self.sma + 1000000
                 self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) - self.sell_initial_offset
+            elif self.sma_cross_short < self.sma_cross_long - sma_cross_diff:
+                # Not in a trend. Do not buy right now
+                self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + std_offset
+                self.bid_theo = self.sma - 1000000
             else:
-                # Not in a trend. Feel free to sell.
+                # Not in a trend. Feel free to trade.
                 self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + std_offset
                 self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) - self.sell_initial_offset
 

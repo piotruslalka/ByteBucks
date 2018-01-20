@@ -77,13 +77,13 @@ my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
-order_book.auth_client.buy_levels = 0.0129
-order_book.auth_client.net_position = 3
-current_price = 11311
-current_pnl = 0
-order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
-order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
-order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
+#order_book.auth_client.buy_levels = 0.0129
+#order_book.auth_client.net_position = 3
+#current_price = 11311
+#current_pnl = 0
+#order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
+#order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
+#order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
@@ -124,16 +124,20 @@ while order_book.message_count < 1000000000000:
 
             order_book.short_std = my_MA.get_weighted_std(strategy_settings.get('std_short_duration')*60) * strategy_settings.get('std_short_multiplier')
             order_book.long_std = my_MA.get_weighted_std(strategy_settings.get('std_long_duration')*60) * strategy_settings.get('std_long_multiplier')
-            logger.debug('Price: {:.2f}'.format(float(order_book.trade_price)))
-            logger.debug('PnL: {:.2f}'.format(order_book.get_pnl()))
-            logger.debug('NP: {:.1f}'.format(order_book.auth_client.net_position))
-            logger.debug('SMA: {:.2f}'.format(order_book.sma))
-            logger.debug('Bid Theo: {:.2f}'.format(order_book.bid_theo))
-            logger.debug('Ask Theo: {:.2f}'.format(order_book.ask_theo))
-            logger.debug('5_wStd: {:.2f}'.format(order_book.short_std))
-            logger.debug('30_wStd: {:.2f}'.format(order_book.long_std))
-            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tsSMA: {:.2f}\tlSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, order_book.sma_cross_short, order_book.sma_cross_long))
 
+            if order_book.trade_price != None:
+
+                logger.debug('Price: {:.2f}'.format(float(order_book.trade_price)))
+                logger.debug('PnL: {:.2f}'.format(order_book.get_pnl()))
+                logger.debug('NP: {:.1f}'.format(order_book.auth_client.net_position))
+                logger.debug('SMA: {:.2f}'.format(order_book.sma))
+                logger.debug('Bid Theo: {:.2f}'.format(order_book.bid_theo))
+                logger.debug('Ask Theo: {:.2f}'.format(order_book.ask_theo))
+                logger.debug('5_wStd: {:.2f}'.format(order_book.short_std))
+                logger.debug('30_wStd: {:.2f}'.format(order_book.long_std))
+                logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tsSMA: {:.2f}\tlSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, order_book.sma_cross_short, order_book.sma_cross_long))
+            else:
+                logger.info('Waiting for a valid trade_price... Still Initializing the MA...')
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
             logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(long_sma, order_book.bid_theo, order_book.ask_theo))
