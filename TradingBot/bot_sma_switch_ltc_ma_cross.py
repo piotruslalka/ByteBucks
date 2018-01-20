@@ -11,15 +11,15 @@ from datetime import datetime
 
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
-    'product_id': 'BTC-USD',
+    'product_id': 'LTC-USD',
     'strategy_name': "bot_sma_cross_stable",
-    'order_size': 0.0043,
+    'order_size': 0.153,
     'set_ma_value': True,
-    'manual_ma_value': 12000,
+    'manual_ma_value': 200,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
-    'buy_initial_offset': 150,
-    'sell_initial_offset': 300,
+    'buy_initial_offset': 1.5,
+    'sell_initial_offset': 3,
     'buy_max_initial_profit_target': 50000,
     'sell_max_initial_profit_target': 50000,
     'max_long_position': 10000,
@@ -77,9 +77,9 @@ my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
-order_book.auth_client.buy_levels = 0.0129
-order_book.auth_client.net_position = 3
-current_price = 11311
+order_book.auth_client.buy_levels = 0.918
+order_book.auth_client.net_position = 6
+current_price = 190
 current_pnl = 0
 order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
 order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
@@ -101,7 +101,7 @@ while order_book.message_count < 1000000000000:
     my_MA.count += 1
 
     if strategy_settings.get('set_ma_value') == True:
-        my_MA.add_value(order_book.trade_price)
+        base_sma = my_MA.add_value(order_book.trade_price)
         long_sma = strategy_settings.get('manual_ma_value')
     else:
         long_sma = my_MA.add_value(order_book.trade_price)
