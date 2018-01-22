@@ -234,11 +234,11 @@ class OrderBookConsole(OrderBook):
 
         elif self.auth_client.net_position > 0:
             # We are long
-            if self.sma_cross_short < self.sma_cross_long - sma_cross_diff:
+            if self.sma_cross_short < self.sma_cross_long - self.sma_cross_diff:
                 # We are trending. Do not buy right now
                 self.bid_theo = self.sma - 1000000
                 self.ask_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position)) + self.buy_initial_offset
-            elif self.sma_cross_short > self.sma_cross_long + sma_cross_diff:
+            elif self.sma_cross_short > self.sma_cross_long + self.sma_cross_diff:
                 # We are trending. Do not sell right now
                 self.bid_theo = self.sma - (self.buy_initial_offset * abs(self.auth_client.net_position + 1)) - std_offset
                 self.ask_theo = self.sma + 1000000
@@ -258,11 +258,11 @@ class OrderBookConsole(OrderBook):
 
         else:
             # We are short
-            if self.sma_cross_short > self.sma_cross_long + sma_cross_diff:
+            if self.sma_cross_short > self.sma_cross_long + self.sma_cross_diff:
                 # We are trending. Do not sell right now
                 self.ask_theo = self.sma + 1000000
                 self.bid_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position)) - self.sell_initial_offset
-            elif self.sma_cross_short < self.sma_cross_long - sma_cross_diff:
+            elif self.sma_cross_short < self.sma_cross_long - self.sma_cross_diff:
                 # Not in a trend. Do not buy right now
                 self.ask_theo = self.sma + (self.sell_initial_offset * abs(self.auth_client.net_position - 1)) + std_offset
                 self.bid_theo = self.sma - 1000000

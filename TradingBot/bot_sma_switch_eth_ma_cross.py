@@ -15,7 +15,7 @@ strategy_settings = {
     'strategy_name': "bot_sma_cross_stable",
     'order_size': 0.017,
     'set_ma_value': True,
-    'manual_ma_value': 1100,
+    'manual_ma_value': 1200,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
     'buy_initial_offset': 5,
@@ -78,13 +78,13 @@ my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
-#order_book.auth_client.buy_levels = 0.153
-#order_book.auth_client.net_position = 9
-#current_price = 1032
-#current_pnl = 0
-#order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
-#order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
-#order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
+order_book.auth_client.buy_levels = 0.221
+order_book.auth_client.net_position = 13
+current_price = 1031.2
+current_pnl = 13
+order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
+order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
+order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
