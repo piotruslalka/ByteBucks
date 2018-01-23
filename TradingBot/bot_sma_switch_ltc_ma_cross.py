@@ -21,6 +21,8 @@ strategy_settings = {
     'buy_initial_offset': 1.5,
     'sell_initial_offset': 3,
     'sma_cross_diff': 0.15,
+    'break_out_level_add': 15,
+    'break_out_level_reduce': 15,
     'buy_max_initial_profit_target': 50000,
     'sell_max_initial_profit_target': 50000,
     'max_long_position': 10000,
