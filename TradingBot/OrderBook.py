@@ -57,7 +57,7 @@ class OrderBookConsole(OrderBook):
         self.num_order_rejects = 0
         self.num_rejections = 0
         self.min_tick = round(0.01, 2)
-        self.min_order_size = round(0.0001, 4)
+        self.min_order_size = strategy_settings.get('min_tick')
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'], strategy_settings)
 
