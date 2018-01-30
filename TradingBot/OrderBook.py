@@ -231,8 +231,17 @@ class OrderBookConsole(OrderBook):
 
         if self.auth_client.net_position == 0:
             # We are flat
-            self.bid_theo = self.sma - self.buy_initial_offset - std_offset
-            self.ask_theo = self.sma + self.sell_initial_offset + std_offset
+            if self.sma_cross_short < self.sma_cross_long - self.sma_cross_diff:
+                # We are trending lower
+                self.bid_theo = self.sma - 1000000
+                self.ask_theo = self.sma + self.sell_initial_offset + std_offset
+            elif self.sma_cross_short > self.sma_cross_long + self.sma_cross_diff:
+                # We are trending higher.
+                self.bid_theo = self.sma - self.buy_initial_offset - std_offset
+                self.ask_theo = self.sma + 1000000
+            else:
+                self.bid_theo = self.sma - self.buy_initial_offset - std_offset
+                self.ask_theo = self.sma + self.sell_initial_offset + std_offset
 
         elif self.auth_client.net_position > 0:
             # We are long
