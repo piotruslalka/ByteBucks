@@ -12,14 +12,15 @@ from datetime import datetime
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
     'product_id': 'BTC-USD',
+    'min_tick': 0.001,
     'strategy_name': "bot_sma_cross_stable",
     'order_size': 0.001,
     'set_ma_value': False,
     'manual_ma_value': 9400.69,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
-    'buy_initial_offset': 25,
-    'sell_initial_offset': 25,
+    'buy_initial_offset': 5,
+    'sell_initial_offset': 5,
     'sma_cross_diff': 0,
     'break_out_level_add': 250,
     'break_out_level_reduce': 250,
