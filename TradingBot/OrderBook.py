@@ -58,9 +58,9 @@ class OrderBookConsole(OrderBook):
         self.myKeys = keys
         self.auth_client = MyFillOrderBook(self.myKeys['key'], self.myKeys['secret'], self.myKeys['passphrase'], strategy_settings)
 
-        logger.info("Settings Used:")
-        logger.info(strategy_settings)
-        logger.info("Order Size: {}\tBuy Initial Offset: {}\tSell Initial Offset: {}".format(self.order_size, self.buy_initial_offset, self.sell_initial_offset))
+        logger.critical("Settings Used:")
+        logger.critical(strategy_settings)
+        logger.critical("Order Size: {}\tBuy Initial Offset: {}\tSell Initial Offset: {}".format(self.order_size, self.buy_initial_offset, self.sell_initial_offset))
 
     def on_message(self, message):
         super(OrderBookConsole, self).on_message(message)
