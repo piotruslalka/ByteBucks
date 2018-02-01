@@ -14,21 +14,21 @@ strategy_settings = {
     'product_id': 'BTC-USD',
     'strategy_name': "bot_sma_cross_stable",
     'order_size': 0.001,
-    'set_ma_value': True,
-    'manual_ma_value': 10500.69,
+    'set_ma_value': False,
+    'manual_ma_value': 9400.69,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
-    'buy_initial_offset': 150,
-    'sell_initial_offset': 150,
-    'sma_cross_diff': 15,
-    'break_out_level_add': 500,
-    'break_out_level_reduce': 500,
+    'buy_initial_offset': 25,
+    'sell_initial_offset': 25,
+    'sma_cross_diff': 0,
+    'break_out_level_add': 250,
+    'break_out_level_reduce': 250,
     'buy_max_initial_profit_target': 50000,
     'sell_max_initial_profit_target': 50000,
     'max_long_position': 10000,
     'max_short_position': 10000,
     'sma_swap_trigger_level': 10000,
-    'sma_long_duration': 4*60,
+    'sma_long_duration': 72*60,
     'sma_cross_short_duration': 5,
     'sma_cross_long_duration': 15,
     'std_long_duration': 30,
@@ -60,11 +60,11 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Debug file handler and set level to DEBUG
-handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+# handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+# handler.setLevel(logging.DEBUG)
+# formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
 
 
 # Log my Keys
