@@ -12,10 +12,11 @@ from datetime import datetime
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
     'product_id': 'ETH-USD',
+    'min_tick': 0.01,
     'strategy_name': "bot_sma_cross_stable",
     'order_size': 0.01,
     'set_ma_value': True,
-    'manual_ma_value': 1050.69,
+    'manual_ma_value': 885.69,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
     'buy_initial_offset': 5,
@@ -23,8 +24,8 @@ strategy_settings = {
     'sma_cross_diff': 0.5,
     'break_out_level_add': 50,
     'break_out_level_reduce': 50,
-    'buy_max_initial_profit_target': 50000,
     'sell_max_initial_profit_target': 50000,
+    'buy_max_initial_profit_target': 50000,
     'max_long_position': 10000,
     'max_short_position': 10000,
     'sma_swap_trigger_level': 10000,
@@ -60,11 +61,11 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Debug file handler and set level to DEBUG
-handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+# handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+# handler.setLevel(logging.DEBUG)
+# formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
 
 
 # Log my Keys
