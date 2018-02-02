@@ -15,7 +15,7 @@ strategy_settings = {
     'strategy_name': "bot_sma_stable",
     'order_size': 0.01,
     'set_ma_value': True,
-    'manual_ma_value': 969.69,
+    'manual_ma_value': 885.69,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
     'buy_initial_offset': 5,
@@ -57,11 +57,11 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Debug file handler and set level to DEBUG
-handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+# handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+# handler.setLevel(logging.DEBUG)
+# formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
 
 
 # Log my Keys
