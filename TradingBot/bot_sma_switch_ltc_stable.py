@@ -12,14 +12,14 @@ from datetime import datetime
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
     'product_id': 'LTC-USD',
-    'strategy_name': "bot_sma_stable",
+    'strategy_name': "bot_ltc_stable",
     'order_size': 0.1,
     'set_ma_value': True,
-    'manual_ma_value': 213.69,
+    'manual_ma_value': 150.69,
     'min_size_for_order_update': 0,
     'min_distance_for_order_update': 0,
-    'buy_initial_offset': 1.00,
-    'sell_initial_offset': 2.00,
+    'buy_initial_offset': 1.0,
+    'sell_initial_offset': 5.0,
     'buy_max_initial_profit_target': 5000,
     'sell_max_initial_profit_target': 5000,
     'max_long_position': 1000,
@@ -57,11 +57,11 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Debug file handler and set level to DEBUG
-handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+# handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+# handler.setLevel(logging.DEBUG)
+# formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
 
 
 # Log my Keys
@@ -86,6 +86,7 @@ order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), ke
 #order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
 #order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
 #order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
+
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
