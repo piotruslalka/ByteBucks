@@ -11,20 +11,23 @@ from datetime import datetime
 
 # Strategy Settings: Package Trade Settings as a dictionary so you can simply pass that into OrderBook
 strategy_settings = {
-    'product_id': 'ETH-USD',
-    'strategy_name': "bot_sma_switch",
-    'order_size': 0.1,
-    'min_size_for_order_update': 1,
-    'min_distance_for_order_update': 5,
-    'buy_initial_offset': 15,
-    'sell_initial_offset': 30,
-    'buy_max_initial_profit_target': 5000,
-    'sell_max_initial_profit_target': 5000,
-    'max_long_position': 1000,
-    'max_short_position': 1000,
-    'sma_swap_trigger_level': 1000,
+    'product_id': 'BTC-USD',
+    'strategy_name': "bot_btc_stable_72",
+    'order_size': 0.001,
+    'set_ma_value': False,
+    'manual_ma_value': 9400.69,
+    'min_size_for_order_update': 0,
+    'min_distance_for_order_update': 0,
+    'buy_initial_offset': 25,
+    'sell_initial_offset': 25,
+    'buy_max_initial_profit_target': 50000,
+    'sell_max_initial_profit_target': 50000,
+    'max_long_position': 10000,
+    'max_short_position': 10000,
+    'sma_swap_trigger_level': 10000,
     'sma_long_duration': 72*60,
-    'sma_short_duration': 30,
+    'sma_cross_short_duration': 5,
+    'sma_cross_long_duration': 15,
     'std_long_duration': 30,
     'std_short_duration': 5,
     'std_long_multiplier': 0.5,
@@ -54,11 +57,11 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Debug file handler and set level to DEBUG
-handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+# handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+# handler.setLevel(logging.DEBUG)
+# formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
 
 
 # Log my Keys
@@ -71,18 +74,17 @@ logger.info("My user_id is: " + my_user_id)
 
 # Moving Average Initialization.
 my_MA = MovingAverageCalculation(period=strategy_settings.get('sma_long_duration')*60)
-#current_SMA = 19425
-#my_MA.add_value(current_SMA)
 
 # Start Up OrderBook
 order_book = OrderBookConsole(product_id=strategy_settings.get('product_id'), keys=myKeys, strategy_settings = strategy_settings)
-#order_book.auth_client.buy_levels = 0.89
-#order_book.auth_client.net_position = 15
-#current_price = 19100
-#current_pnl = -25.5
+#order_book.auth_client.buy_levels = 0.075
+#order_book.auth_client.net_position = -17
+#current_price = 11429.71
+#current_pnl = 1.46
 #order_book.auth_client.real_position = strategy_settings.get('order_size') * order_book.auth_client.net_position
 #order_book.auth_client.pnl = current_pnl - (order_book.auth_client.real_position * current_price)
 #order_book.auth_client.sell_levels = order_book.auth_client.buy_levels - order_book.auth_client.real_position
+
 order_book.auth = True
 order_book.api_key = myKeys['key']
 order_book.api_secret = myKeys['secret']
@@ -98,7 +100,12 @@ reset_not_triggered = True
 while order_book.message_count < 1000000000000:
     loop_count += 1
     my_MA.count += 1
-    long_sma = my_MA.add_value(order_book.trade_price)
+
+    if strategy_settings.get('set_ma_value') == True:
+        set_to_nothing = my_MA.add_value(order_book.trade_price)
+        long_sma = strategy_settings.get('manual_ma_value')
+    else:
+        long_sma = my_MA.add_value(order_book.trade_price)
 
     if order_book.num_order_rejects > 0:
         logger.warning("Setting Rejects back to 0")
@@ -106,22 +113,30 @@ while order_book.message_count < 1000000000000:
 
     if long_sma != None:
         if my_MA.count > 30:
-            short_sma =  my_MA.get_sma(strategy_settings.get('sma_short_duration')*60)
-            if (order_book.auth_client.net_position >= strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma < -5) or (order_book.auth_client.net_position <= -strategy_settings.get('sma_swap_trigger_level') and short_sma - long_sma > 5):
-                use_long_sma = False
-            elif abs(long_sma-short_sma) < 5:
-                use_long_sma = True
+            sma_cross_short = my_MA.get_sma(strategy_settings.get('sma_cross_short_duration')*60)
+            sma_cross_long = my_MA.get_sma(strategy_settings.get('sma_cross_long_duration')*60)
 
-            if use_long_sma:
-                order_book.sma = long_sma
-            else:
-                order_book.sma = short_sma
+            order_book.sma_cross_short = sma_cross_short
+            order_book.sma_cross_long = sma_cross_long
 
+            order_book.sma = long_sma
             order_book.valid_sma = True
+
             order_book.short_std = my_MA.get_weighted_std(strategy_settings.get('std_short_duration')*60) * strategy_settings.get('std_short_multiplier')
             order_book.long_std = my_MA.get_weighted_std(strategy_settings.get('std_long_duration')*60) * strategy_settings.get('std_long_multiplier')
-            logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}\tlSMA: {:.2f}\tsSMA: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std, long_sma, short_sma))
 
+            if order_book.trade_price != None:
+                logger.debug('Price: {:.2f}'.format(float(order_book.trade_price)))
+                logger.debug('PnL: {:.2f}'.format(order_book.get_pnl()))
+                logger.debug('NP: {:.1f}'.format(order_book.auth_client.net_position))
+                logger.debug('SMA: {:.2f}'.format(order_book.sma))
+                logger.debug('Bid Theo: {:.2f}'.format(order_book.bid_theo))
+                logger.debug('Ask Theo: {:.2f}'.format(order_book.ask_theo))
+                logger.debug('5_wStd: {:.2f}'.format(order_book.short_std))
+                logger.debug('30_wStd: {:.2f}'.format(order_book.long_std))
+                logger.info('Price: {:.2f}\tPnL: {:.2f}\tNP: {:.1f}\tSMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}\t5_wStd: {:.2f}\t30_wStd: {:.2f}'.format(float(order_book.trade_price), order_book.get_pnl(), order_book.auth_client.net_position, order_book.sma, order_book.bid_theo, order_book.ask_theo, order_book.short_std, order_book.long_std))
+            else:
+                logger.info('Waiting for a valid trade_price... Still Initializing the MA...')
         else:
             logger.info("Still Initializing. MA Count: " + str(my_MA.count) + "")
             logger.info('SMA: {:.2f}\tBid Theo: {:.2f}\tAsk Theo: {:.2f}'.format(long_sma, order_book.bid_theo, order_book.ask_theo))
