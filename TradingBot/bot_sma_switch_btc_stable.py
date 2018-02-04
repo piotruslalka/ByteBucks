@@ -25,7 +25,7 @@ strategy_settings = {
     'max_long_position': 10000,
     'max_short_position': 10000,
     'sma_swap_trigger_level': 10000,
-    'sma_long_duration': 4*60,
+    'sma_long_duration': 72*60,
     'sma_cross_short_duration': 5,
     'sma_cross_long_duration': 15,
     'std_long_duration': 30,
