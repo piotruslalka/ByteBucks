@@ -13,7 +13,7 @@ from datetime import datetime
 strategy_settings = {
     'product_id': 'BTC-USD',
     'strategy_name': "bot_btc_stable_72",
-    'order_size': 0.001,
+    'order_size': 0.005,
     'set_ma_value': False,
     'manual_ma_value': 9400.69,
     'min_size_for_order_update': 0,
@@ -50,18 +50,18 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Error file handler and set level to ERROR
-handler = logging.FileHandler(os.path.join("C:", "error_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+handler = logging.FileHandler(os.path.join("D:", "error_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
 handler.setLevel(logging.WARNING)
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 # Create Debug file handler and set level to DEBUG
-# handler = logging.FileHandler(os.path.join("C:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
-# handler.setLevel(logging.DEBUG)
-# formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-# handler.setFormatter(formatter)
-# logger.addHandler(handler)
+handler = logging.FileHandler(os.path.join("D:", "debug_" + strategy_settings.get('strategy_name') + "_" + time.strftime("%Y%m%d_%H%M%S") + ".log"),"w")
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 # Log my Keys
